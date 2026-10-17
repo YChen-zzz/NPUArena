@@ -213,6 +213,19 @@ svg{display:block}
 .account-card p{color:var(--muted)}
 .account-future{display:flex;flex-direction:column;gap:5px;padding-top:24px;border-top:1px solid var(--line);margin-top:30px;font-size:.85rem;color:var(--muted)}
 .account-future strong{color:var(--ink)}
+.auth-form{display:grid;gap:16px;margin-top:27px}
+.auth-form label{display:grid;gap:7px;color:var(--ink);font-size:.88rem;font-weight:700}
+.auth-form input{width:100%;min-height:45px;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-weight:400}
+.auth-form .button{margin-top:3px}
+.auth-form .button:disabled{cursor:wait;opacity:.65;transform:none}
+.auth-status{min-height:1.3em;color:#a34646;font-size:.84rem}
+.auth-switch{margin:17px 0 0;color:var(--muted);font-size:.88rem}
+.auth-switch a{color:var(--teal);font-weight:700}
+.account-identity{display:grid;gap:5px;padding:15px 17px;border:1px solid var(--line);border-radius:10px;background:var(--soft);overflow-wrap:anywhere}
+.account-identity span{color:var(--muted);font-size:.78rem}
+.nav-user{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--teal)}
+.nav-logout{border:0;background:none;padding:0;color:var(--muted);font-size:.86rem;font-weight:600}
+.nav-logout:hover{color:var(--teal)}
 
 @media(max-width:900px){.detail-grid,.editor-layout{grid-template-columns:1fr}
 .quick-card{order:-1}

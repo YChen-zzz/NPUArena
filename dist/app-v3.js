@@ -9,7 +9,8 @@
   const extraBoards = window.NPU_ARENA_LEADERBOARDS || {};
   const state = {
     records: window.NPU_SNAPSHOT || [], source: '离线快照', syncedAt: null, snapshotSha: null,
-    recordFilter: 'all', recordSearch: '', category: 'all', leaderboardCategory: 'all', template: 'training'
+    recordFilter: 'all', recordSearch: '', category: 'all', leaderboardCategory: 'all', template: 'training',
+    user: null, authChecked: false, authError: ''
   };
   let stopAnimation = () => {};
 
@@ -227,7 +228,75 @@
 
   function accountPage(mode) {
     const register = mode === 'register';
-    return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">ACCOUNT PREVIEW</span><h1>${register ? '注册 NPUArena' : '登录 NPUArena'}</h1><p>账号功能仍在设计中。NanoGPT 榜单现在可以直接浏览，提交继续通过 GitHub PR 完成。</p><div class="account-actions"><a class="button button-primary" href="#/leaderboards">浏览 Leaderboards</a><a class="button button-outline" href="#/nanogpt/submit">查看 NanoGPT 提交方式</a></div><div class="account-future"><strong>账号接入后可使用</strong><span>我的提交 · 运行状态 · 评测日志 · 创建挑战</span></div></div></div>`;
+    if (state.user) return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">MY ACCOUNT</span><h1>你好，${esc(state.user.displayName)}</h1><p>已登录 NPUArena。账号信息保存在服务端数据库中。</p><div class="account-identity"><span>邮箱</span><strong>${esc(state.user.email)}</strong></div><div class="account-actions"><a class="button button-primary" href="#/leaderboards">浏览 Leaderboards</a><button class="button button-outline" type="button" data-logout>退出登录</button></div><div class="account-future"><strong>当前功能</strong><span>账号注册与登录已接入数据库。Benchmark、Leaderboard 和接入草稿仍只保存在当前浏览器，不随账号同步。</span></div></div></div>`;
+    return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">NPUARENA ACCOUNT</span><h1>${register ? '注册 NPUArena' : '登录 NPUArena'}</h1><p>${register ? '创建账号，参与后续的 NPU 性能挑战。' : '登录后可查看账号状态。当前成绩提交仍通过 GitHub PR 完成。'}</p><form id="authForm" class="auth-form" data-auth-mode="${register ? 'register' : 'login'}">${register ? '<label>昵称<input name="displayName" autocomplete="name" minlength="2" maxlength="40" required placeholder="你的昵称" /></label>' : ''}<label>邮箱<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com" /></label><label>密码<input name="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" minlength="8" maxlength="128" required placeholder="至少 8 个字符" /></label>${register ? '<label>确认密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required placeholder="再次输入密码" /></label>' : ''}<button class="button button-primary" type="submit">${register ? '创建账号' : '登录'}</button><span class="auth-status" id="authStatus" role="status">${esc(state.authError)}</span></form><p class="auth-switch">${register ? '已有账号？<a href="#/account/login">登录</a>' : '还没有账号？<a href="#/account/register">注册</a>'}</p><div class="account-future"><strong>账号数据</strong><span>密码仅提交到本站服务端，数据库保存密码哈希；浏览器只持有 HttpOnly 登录 Cookie。</span></div></div></div>`;
+  }
+
+  function updateNavAccount() {
+    const nav = document.getElementById('navActions');
+    if (state.user) nav.innerHTML = `<a class="nav-user" href="#/account" title="${esc(state.user.email)}">${esc(state.user.displayName)}</a><button class="nav-logout" type="button" data-logout>退出</button>`;
+    else nav.innerHTML = '<a href="#/account/login">登录</a><a class="button button-primary button-small" href="#/account/register">注册</a>';
+  }
+
+  async function loadSession() {
+    try {
+      const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('账号服务不可用');
+      state.user = (await response.json()).user || null;
+      state.authError = '';
+    } catch {
+      state.authError = '账号服务不可用。请运行 python server.py，而不是静态文件服务器。';
+    }
+    state.authChecked = true;
+    updateNavAccount();
+    if (location.hash.startsWith('#/account')) render();
+  }
+
+  async function submitAuth(form) {
+    const status = form.querySelector('#authStatus');
+    const button = form.querySelector('button[type="submit"]');
+    const mode = form.dataset.authMode;
+    const values = Object.fromEntries(new FormData(form));
+    if (mode === 'register' && values.password !== values.confirmPassword) {
+      status.textContent = '两次输入的密码不一致。';
+      return;
+    }
+    button.disabled = true;
+    status.textContent = '正在处理…';
+    try {
+      const response = await fetch(`/api/auth/${mode}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: values.displayName, email: values.email, password: values.password })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '账号服务暂时不可用。');
+      state.user = data.user;
+      state.authError = '';
+      updateNavAccount();
+      location.hash = '#/account';
+    } catch (error) {
+      status.textContent = error.message || '账号服务暂时不可用。';
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function logout() {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: '{}'
+      });
+      if (!response.ok) throw new Error('退出失败');
+      state.user = null;
+      updateNavAccount();
+      if (location.hash === '#/account/login') render();
+      else location.hash = '#/account/login';
+    } catch {
+      const status = document.getElementById('authStatus');
+      if (status) status.textContent = '退出失败，请稍后再试。';
+    }
   }
 
   function render() {
@@ -425,6 +494,7 @@
   }
 
   app.addEventListener('click', event => {
+    if (event.target.closest('[data-logout]')) { void logout(); return; }
     const extraRecord = event.target.closest('[data-extra-record]'); if (extraRecord) { openExtraDrawer(extraRecord.dataset.extraBoard, extraRecord.dataset.extraRecord); return; }
     const record = event.target.closest('[data-record]'); if (record) { openDrawer(record.dataset.record); return; }
     const syncBoard = event.target.closest('[data-sync-extra]'); if (syncBoard) { syncExtra(syncBoard.dataset.syncExtra); return; }
@@ -443,6 +513,7 @@
   });
   app.addEventListener('submit', event => {
     const formId = event.target.getAttribute('id');
+    if (formId === 'authForm') { event.preventDefault(); void submitAuth(event.target); return; }
     if (formId === 'prLookupForm') { event.preventDefault(); lookupPr(new FormData(event.target).get('pr')); return; }
     if (formId === 'createForm') { event.preventDefault(); saveDraft({ ...Object.fromEntries(new FormData(event.target)), template: state.template }); document.getElementById('saveState').textContent = '草稿已保存在当前浏览器'; event.target.reset(); return; }
     if (formId === 'importForm') { event.preventDefault(); saveImport(Object.fromEntries(new FormData(event.target))); document.getElementById('importSaveState').textContent = '接入草稿已保存，尚未同步成绩'; event.target.reset(); return; }
@@ -451,7 +522,9 @@
   drawerRoot.addEventListener('click', event => { if (event.target.id === 'drawerBackdrop' || event.target.id === 'drawerClose') closeDrawer(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeDrawer(); });
   document.getElementById('menuButton').addEventListener('click', () => { const nav = document.getElementById('siteNav'); const open = nav.classList.toggle('open'); document.getElementById('menuButton').setAttribute('aria-expanded', String(open)); });
+  document.getElementById('navActions').addEventListener('click', event => { if (event.target.closest('[data-logout]')) void logout(); });
   if (document.modelContext?.registerTool) { try { void Promise.resolve(document.modelContext.registerTool({ name: 'save_benchmark_draft', title: '保存 Benchmark 草稿', description: '在当前浏览器保存训练、推理或算子赛题草稿，不会发布。', inputSchema: { type: 'object', properties: { template: { type: 'string', enum: ['training', 'inference', 'kernel'] }, title: { type: 'string' }, summary: { type: 'string' }, hardware: { type: 'string' }, dataset: { type: 'string' }, model: { type: 'string' }, goal: { type: 'string' }, metric: { type: 'string' }, direction: { type: 'string', enum: ['asc', 'desc'] }, rulesVersion: { type: 'string' }, submission: { type: 'string', enum: ['github-pr', 'platform', 'external'] } }, required: ['template', 'title', 'summary', 'hardware', 'dataset', 'model', 'goal', 'metric', 'direction', 'rulesVersion', 'submission'], additionalProperties: true }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute(input) { if (!templates[input?.template]) throw new Error('不支持的赛题类型'); return saveDraft(input); } })).catch(() => {}); } catch {} }
   window.addEventListener('hashchange', render);
   render();
+  void loadSession();
 })();

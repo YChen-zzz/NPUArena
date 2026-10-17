@@ -1,16 +1,24 @@
 # NPUArena demo
 
-本地静态演示站。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。三个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
+本地演示站，包含静态榜单前端和账号 API。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。三个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
 
 首页使用线路板动画和完整 NPUArena 名称作为主视觉。NanoGPT 榜单页面分为概览、数据与模型、评测规则、提交、排行榜。正式提交仍走 GitHub PR。站内可查询公开 PR 的 GitHub 状态。
 
-Benchmarks 与 Leaderboards 目录各有“创建”入口。创建 Benchmark 可保存本机任务草稿；创建 Leaderboard 可填写比较口径、提交方式、审核方式及可选的首条成绩，并在本机查看、编辑草稿。“接入已有榜单”是单独的来源映射流程。上述草稿均保存在浏览器 `localStorage`，未公开发布。登录和注册为设计预览，没有用户系统、数据库、自动导入服务或 NPU 评测后端。
+Benchmarks 与 Leaderboards 目录各有“创建”入口。创建 Benchmark 可保存本机任务草稿；创建 Leaderboard 可填写比较口径、提交方式、审核方式及可选的首条成绩，并在本机查看、编辑草稿。“接入已有榜单”是单独的来源映射流程。上述草稿仍保存在浏览器 `localStorage`，不随账号同步，也未公开发布。注册、登录和退出已由服务端处理；没有自动导入服务或 NPU 评测后端。
 
 ## 本地运行
 
-在 `dist` 目录运行 `python -m http.server 4173 --bind 127.0.0.1`，然后打开 [http://localhost:4173/](http://localhost:4173/)。
+在项目根目录运行 `python server.py --host 127.0.0.1 --port 4173`，然后打开 [http://127.0.0.1:4173/](http://127.0.0.1:4173/)。第一次启动会自动创建 `data/npuarena.sqlite3`；该文件已被 Git 忽略。使用原来的 `python -m http.server` 只能浏览静态页面，无法注册或登录。
 
-主要入口：`/#/benchmarks`、`/#/create`、`/#/leaderboards`、`/#/leaderboards/new`、`/#/import`、`/#/nanogpt`、`/#/airbench`、`/#/nanovlm`。页面是无构建步骤的静态 HTML、CSS 与 JavaScript，修改后刷新浏览器即可查看。
+主要入口：`/#/benchmarks`、`/#/create`、`/#/leaderboards`、`/#/leaderboards/new`、`/#/import`、`/#/nanogpt`、`/#/airbench`、`/#/nanovlm`、`/#/account/register`。前端仍是无构建步骤的 HTML、CSS 与 JavaScript，修改后刷新浏览器即可查看。
+
+## 账号与数据库
+
+`server.py` 提供同源的 `/api/auth/register`、`/api/auth/login`、`/api/auth/logout` 和 `/api/auth/me`。`database.py` 在 SQLite 或 PostgreSQL 中保存用户、密码哈希和会话。密码经随机盐和 scrypt 计算后入库，明文不会写入数据库或浏览器存储。浏览器收到的是 7 天有效、`HttpOnly`、`SameSite=Lax` 的会话 Cookie；数据库只保存会话令牌的 SHA-256 摘要。退出登录会删除会话。注册和登录有限次尝试限制。
+
+本地默认使用 SQLite，不需额外安装依赖。部署时可配置 `DATABASE_URL` 使用 PostgreSQL，并先执行 `pip install -r requirements.txt`。示例见 [`.env.example`](.env.example)；实际凭据应放在部署环境中，不要提交到仓库。使用 HTTPS 时设置 `PUBLIC_ORIGIN=https://你的域名` 和 `COOKIE_SECURE=true`，并让反向代理转发原始 Host。数据库服务不要直接开放到公网。
+
+账号数据只保存在运行 `server.py` 的那台机器或所配置的 PostgreSQL 中。GitHub 仓库存放代码，不存放账号数据库；换服务器时需要迁移数据库。Benchmark、Leaderboard 和接入草稿目前仍是浏览器本地数据，不会自动按账号同步。
 
 ## 数据
 
@@ -24,6 +32,6 @@ NanoGPT 的硬件展示统一按物理卡数计为 **8×Ascend 910C**，对应 *
 
 ## 下一步接入真实平台
 
-1. 为创建赛题、提交与审核增加账户和持久化存储。
+1. 把赛题草稿、提交与审核流程接入账号和数据库。
 2. 将 GitHub PR 同步变成服务端任务，记录规则版本、审核结论和可追溯的 commit SHA。
 3. 在硬件资源与安全边界明确后接入评测队列和隔离执行节点。
