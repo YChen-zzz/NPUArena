@@ -1,0 +1,57 @@
+.home-page{width:100%;padding:28px clamp(20px,4.2vw,64px) 76px}
+.cover{position:relative;isolation:isolate;min-height:470px;height:min(620px,calc(100vh - 132px));overflow:hidden;border:1px solid #38473d;border-radius:10px;background:radial-gradient(circle at 50% 45%,#263629 0%,#17231c 38%,#101714 78%);color:#f9f5e9;display:grid;place-items:center}
+.cover:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 42% 54% at center,#121a17ec 0%,#121a17c2 54%,transparent 100%)}
+.cover:after{content:"";position:absolute;inset:12px;border:1px solid #9cae9a20;border-radius:3px;pointer-events:none;z-index:2}
+.cover-canvas,.cover-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.cover-grid{background-image:radial-gradient(#819b8b47 1px,transparent 1px);background-size:26px 26px;opacity:.32;mask-image:linear-gradient(90deg,#000,transparent 43%,transparent 57%,#000)}
+.cover-center{z-index:3;text-align:center;padding:36px 20px;position:relative;width:100%}
+.cover-overline{font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.23em;color:#92aa98;margin-bottom:21px}
+.cover-overline span{padding:0 8px;color:#e47b47}
+.cover h1{font:700 clamp(45px,7.7vw,116px)/1 'IBM Plex Sans',sans-serif;letter-spacing:-.085em;margin:0;text-shadow:0 0 48px #f87b3a12;white-space:nowrap}
+.cover h1 span{color:#f47d46}
+.cover-center p{font-size:16px;letter-spacing:.055em;color:#c1cbc0;margin:23px 0 34px}
+.cover-scroll{display:inline-flex;align-items:center;gap:17px;padding:10px 15px;border:1px solid #7d968145;border-radius:4px;background:#17221bb8;color:#e3ebe0;font-size:13px;font-weight:600;transition:background .2s,border-color .2s}
+.cover-scroll:hover{background:#2b3b2e;border-color:#f47d4699}
+.cover-scroll span{color:#f47d46;font:19px 'IBM Plex Mono',monospace;line-height:1}
+.cover-corner{position:absolute;z-index:3;font:10px 'IBM Plex Mono',monospace;letter-spacing:.15em;color:#718779}
+.cover-corner-tl{top:32px;left:35px}
+.cover-corner-br{right:35px;bottom:29px}
+.home-content{max-width:1432px;margin:auto;padding-top:52px;scroll-margin-top:24px}
+.benchmark-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:19px}
+.section-kicker{font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#bd6034}
+.section-kicker span{color:#9a9f92}
+.benchmark-heading h2{font:600 clamp(25px,2.6vw,34px) 'IBM Plex Sans','Noto Sans SC',sans-serif;letter-spacing:-.035em;margin:9px 0 5px}
+.benchmark-heading p{font-size:14px;line-height:1.6;color:#6c756b;margin:0}
+.benchmark-card{display:grid;grid-template-columns:minmax(0,1fr) 246px;background:#fbfaf5;border:1px solid #d1d6ca;border-radius:9px;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.benchmark-card:hover{border-color:#c8a17f;box-shadow:0 12px 28px #2634220b}
+.benchmark-main{padding:31px 34px 30px}
+.benchmark-type{display:flex;align-items:center;gap:8px;color:#a35c39;font:600 11px 'IBM Plex Mono','Noto Sans SC',sans-serif;letter-spacing:.04em}
+.benchmark-live{width:7px;height:7px;background:#7dae7d;border-radius:50%;box-shadow:0 0 0 3px #7dae7d24}
+.benchmark-divider{color:#bcc3b7;margin:0 2px}
+.benchmark-card h3{font:600 clamp(23px,2.7vw,34px)/1.2 'IBM Plex Sans','Noto Sans SC',sans-serif;letter-spacing:-.04em;margin:19px 0 10px;color:#1e2a23}
+.benchmark-card h3 span{font-weight:400;color:#7d897d}
+.benchmark-main>p{font-size:14px;line-height:1.8;color:#637064;margin:0;max-width:690px}
+.benchmark-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:20px}
+.benchmark-tags span{padding:6px 9px;border:1px solid #d7dcd1;background:#f2f4ed;border-radius:3px;color:#536356;font:11px 'IBM Plex Mono',monospace}
+.benchmark-links{display:flex;align-items:center;gap:23px;margin-top:27px}
+.benchmark-repo{color:#526457;font-size:13px;font-weight:600}
+.benchmark-repo:hover{color:#bd6034}
+.benchmark-score{background:#eaf0e8;border-left:1px solid #d3dcd0;padding:31px 24px;display:flex;flex-direction:column}
+.score-topline{font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:#647a67}
+.score-value{font:600 43px/1.25 'IBM Plex Mono',monospace;letter-spacing:-.07em;color:#25362a;margin:14px 0 19px}
+.score-value span{font-size:13px;color:#b65d31;letter-spacing:0;margin-left:5px}
+.score-rule{height:1px;background:#cad7c9;margin-bottom:8px}
+.score-meta{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #d4ded3;padding:10px 0;font-size:12px;color:#718173}
+.score-meta strong{color:#354a39;font-family:'IBM Plex Mono',monospace}
+.benchmark-footnote{font-size:12px;color:#879084;margin:15px 0 0}
+@media(max-width:900px){.cover{height:550px}.benchmark-card{grid-template-columns:minmax(0,1fr) 205px}.benchmark-main{padding:28px}.benchmark-score{padding:27px 19px}}
+@media(max-width:650px){.home-page{padding:16px 16px 50px}.cover{height:490px;min-height:0}.cover:before{background:radial-gradient(ellipse 70% 55% at center,#121a17df,transparent 100%)}.cover-grid{mask-image:none;opacity:.18}.cover h1{font-size:clamp(40px,11vw,68px)}.cover-overline{font-size:9px;letter-spacing:.1em}.cover-overline span{padding:0 4px}.cover-center p{font-size:14px;margin:19px 0 29px}.cover-corner-tl{top:25px;left:24px}.cover-corner-br{right:24px;bottom:24px;font-size:8px}.home-content{padding-top:40px}.benchmark-heading{align-items:flex-start;flex-direction:column}.benchmark-card{grid-template-columns:1fr}.benchmark-main{padding:24px 21px}.benchmark-score{border-left:0;border-top:1px solid #d3dcd0;padding:19px 21px}.score-value{margin:7px 0 11px}.benchmark-type{font-size:10px}.benchmark-card h3{font-size:26px}.benchmark-links{gap:16px}}
+@media(prefers-reduced-motion:reduce){.cover-scroll,.benchmark-card{transition:none}}
+.heading-actions{display:flex;gap:9px;flex-wrap:wrap}
+.benchmark-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;margin-top:23px;max-width:710px}
+.benchmark-facts>div{border-top:1px solid #e0e4da;padding-top:10px;display:grid;gap:5px}
+.benchmark-facts span{color:#89948a;font:10px 'IBM Plex Mono',monospace;letter-spacing:.08em}
+.benchmark-facts strong{font-size:12px;color:#2b3c30;font-weight:600}
+.benchmark-facts small{font-size:11px;color:#7e8d80;font-weight:400}
+.benchmark-links{gap:10px;flex-wrap:wrap}
+@media(max-width:650px){.heading-actions{width:100%}.heading-actions .button{flex:1}.benchmark-facts{grid-template-columns:1fr 1fr}.benchmark-links .button{width:100%}}
