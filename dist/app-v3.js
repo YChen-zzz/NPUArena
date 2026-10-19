@@ -58,7 +58,7 @@
     return leaders().slice(0, 3).map((record, index) => `<a class="preview-row" href="#/nanogpt/leaderboard"><span class="preview-rank">${String(index + 1).padStart(2, '0')}</span><span class="preview-name">${esc(record.description)}</span><strong>${fmt(record.minutes)} <small>min</small></strong></a>`).join('');
   }
 
-  const extraList = () => Object.values(extraBoards);
+  const extraList = () => Object.values(extraBoards).sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999));
   const extraRecords = board => [...board.records].sort((a, b) => a.seconds - b.seconds);
   const boardScore = (board, seconds) => Number(seconds).toFixed(board.precision || 2);
   const boardUrl = (board, path, kind = 'tree') => `${board.repo}/${kind}/${board.sha}/${path}`;

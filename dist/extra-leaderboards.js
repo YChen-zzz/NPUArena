@@ -3,6 +3,7 @@
 window.NPU_ARENA_LEADERBOARDS = {
   airbench: {
     slug: 'airbench',
+    displayOrder: 2,
     title: 'CIFAR-10 Airbench · NPU',
     repo: 'https://github.com/YChen-zzz/cifar10-airbench-npu',
     upstream: 'https://github.com/KellerJordan/cifar10-airbench',
@@ -26,6 +27,7 @@ window.NPU_ARENA_LEADERBOARDS = {
   },
   nanovlm: {
     slug: 'nanovlm',
+    displayOrder: 1,
     title: 'nanoVLM · NPU',
     repo: 'https://github.com/YChen-zzz/nanoVLM-npu',
     upstream: 'https://github.com/huggingface/nanoVLM',
