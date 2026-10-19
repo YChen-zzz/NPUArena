@@ -1,5 +1,5 @@
 // Published results from the two NPU repository READMEs. Links are pinned to
-// the commits read on 2026-10-16; the detail pages can refresh from GitHub.
+// the commits read on 2026-10-19; the detail pages can refresh from GitHub.
 window.NPU_ARENA_LEADERBOARDS = {
   airbench: {
     slug: 'airbench',
@@ -8,7 +8,7 @@ window.NPU_ARENA_LEADERBOARDS = {
     repo: 'https://github.com/YChen-zzz/cifar10-airbench-npu',
     upstream: 'https://github.com/KellerJordan/cifar10-airbench',
     branch: 'master',
-    sha: '2285f94af2348c6de273a1c3a8b12dec88199a47',
+    sha: '45a390574593270f69a20517196cb380c9e4e606',
     hardware: '1× Ascend 910C · 2 die',
     dataset: 'CIFAR-10',
     model: 'Airbench 96% 训练任务',
@@ -21,8 +21,9 @@ window.NPU_ARENA_LEADERBOARDS = {
     rules: '保持 CIFAR-10 划分、数据增强、难例筛选与 45 epoch 训练日程；允许调整 batch 划分、并行、融合与数值格式。',
     qualityName: '平均 TTA 准确率',
     records: [
-      { id: 'airbench-optimized', label: 'NPU 专项优化', description: '整体 BatchNorm、每 rank 本地 loss、侧流重叠与最终池化优化', seconds: 32.66, quality: '96.015%', type: 'optimized', folder: 'airbench_npu/optimized', log: 'airbench_npu/optimized/logs/20261016_180136_ddp.log' },
-      { id: 'airbench-baseline', label: '原算法移植', description: '上游训练算法不变的 Ascend NPU 移植', seconds: 75.88, quality: '96.046%', type: 'baseline', folder: 'airbench_npu/baseline', log: 'airbench_npu/baseline/logs/20261016_134816_607999689.log' }
+      { id: 'airbench-record02_optimization_v1', label: 'NPU 专项优化', description: 'per-rank local BatchNorm after the layer-wise batch split, per-rank local loss, side-stream proxy overlap, single-reduction final max-pool', seconds: 32.76, quality: '96.015%', type: 'optimized', folder: 'airbench_npu/record02_optimization_v1', log: 'airbench_npu/record02_optimization_v1/logs/20261016_180136_ddp.log' },
+      { id: 'airbench-record03_optimization_v2', label: 'NPU 专项优化', description: 'two-rank local-BN DDP, compiled proxy and eval, streamed proxy masks', seconds: 34.14, quality: '96.083%', type: 'optimized', folder: 'airbench_npu/record03_optimization_v2', log: 'airbench_npu/record03_optimization_v2/logs/nogit_optimized_v1_acc20_20261019_172959.log' },
+      { id: 'airbench-record01_kerminal_migration', label: '原算法移植', description: 'upstream port, training algorithm unchanged', seconds: 75.88, quality: '96.046%', type: 'baseline', folder: 'airbench_npu/record01_kerminal_migration', log: 'airbench_npu/record01_kerminal_migration/logs/20261016_134816_607999689.log' }
     ]
   },
   nanovlm: {
@@ -32,7 +33,7 @@ window.NPU_ARENA_LEADERBOARDS = {
     repo: 'https://github.com/YChen-zzz/nanoVLM-npu',
     upstream: 'https://github.com/huggingface/nanoVLM',
     branch: 'main',
-    sha: '65c0eeab924a32777a86bc78e541f75836201bfd',
+    sha: '88bb0e7b243ac125ab1449b26d4e01096198d12d',
     hardware: '8× Ascend NPU · 16 die',
     dataset: 'FineVision',
     model: 'SigLIP2 + SmolLM2 视觉语言模型',
@@ -45,8 +46,8 @@ window.NPU_ARENA_LEADERBOARDS = {
     rules: '保持模型、数据顺序、随机种子、全局 batch、梯度累积、step 数与学习率日程；允许算子及精度优化。',
     qualityName: '最终验证损失',
     records: [
-      { id: 'nanovlm-optimized', label: 'NPU 专项优化', description: '针对 Ascend NPU 的算子与精度优化版本', seconds: 500.434, quality: '1.08362198', type: 'optimized', folder: 'nanoVLM_npu/optimized', log: 'nanoVLM_npu/optimized/logs/migrated_20261016.log' },
-      { id: 'nanovlm-baseline', label: '原算法移植', description: '保持上游训练算法的 NPU 基线移植', seconds: 929.909, quality: '1.08315766', type: 'baseline', folder: 'nanoVLM_npu/baseline', log: 'nanoVLM_npu/baseline/logs/migrated_20261016.log' }
+      { id: 'nanovlm-record02_optimization_v1', label: 'NPU 专项优化', description: 'NPU-targeted build on top of the port', seconds: 500.434, quality: '1.08362198', type: 'optimized', folder: 'nanoVLM_npu/record02_optimization_v1', log: 'nanoVLM_npu/record02_optimization_v1/logs/migrated_20261016.log' },
+      { id: 'nanovlm-record01_kerminal_migration', label: '原算法移植', description: 'baseline port, upstream algorithm unchanged', seconds: 929.909, quality: '1.08315766', type: 'baseline', folder: 'nanoVLM_npu/record01_kerminal_migration', log: 'nanoVLM_npu/record01_kerminal_migration/logs/migrated_20261016.log' }
     ]
   }
 };

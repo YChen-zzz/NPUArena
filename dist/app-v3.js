@@ -143,14 +143,14 @@
 
   function extraBoardContent(board, tab) {
     const base = `#/${board.slug}`;
-    const repoLink = `${board.repo}/blob/${board.sha}/README.md#npu-leaderboard`;
+    const repoLink = `${board.repo}/blob/${board.sha}/README.md#npu-leaderboard-record-history`;
     if (tab === 'overview') return `<div class="detail-grid"><div class="content-card"><span class="eyebrow">ABOUT THIS LEADERBOARD</span><h2>榜单说明</h2><p>${esc(board.summary)} 同一榜单只比较仓库规则所规定的硬件、数据与质量门槛，按${esc(board.metric)}从短到长排序。</p><h3>如何参与</h3><p>阅读 NPU 仓库规则，提交源码、启动方式与完整运行日志。仓库收录后，本站可从 GitHub 更新展示。</p><div class="inline-actions"><a class="button button-primary" href="${base}/leaderboard">查看成绩</a><a class="button button-outline" href="${base}/evaluation">查看评测口径</a></div></div>
       <aside class="content-card quick-card"><h2>榜单信息</h2>${fact('方向', '训练加速')}${fact('硬件', esc(board.hardware))}${fact('数据', esc(board.dataset))}${fact('质量门槛', esc(board.target))}${fact('排名指标', `${esc(board.metric)} ↓`)}${fact('成绩来源', 'GitHub README')}<a class="text-link" href="${board.repo}" target="_blank" rel="noopener noreferrer">打开项目仓库 ↗</a></aside></div><div class="overview-links"><a href="${base}/leaderboard"><strong>${board.records.length}</strong><span>查看已收录成绩 →</span></a><a href="${base}/submit"><strong>PR</strong><span>了解提交方式 →</span></a></div>`;
     if (tab === 'data') return `<div class="detail-grid"><div class="content-card"><span class="eyebrow">DATA & MODEL</span><h2>数据与模型</h2><div class="info-section"><h3>任务与数据</h3><p>${esc(board.dataset)} · ${esc(board.model)}。具体数据准备、模型版本和训练脚本以 NPU 仓库及对应记录为准。</p></div><div class="info-section"><h3>训练和计时</h3><p>${esc(board.timing)}</p></div><div class="info-section"><h3>成绩材料</h3><p>每条成绩都可查看仓库中的实现目录和运行日志。</p></div></div><aside class="content-card quick-card"><h2>相关资源</h2><a class="resource-link" href="${board.repo}" target="_blank" rel="noopener noreferrer">NPU 项目仓库 <span>↗</span></a><a class="resource-link" href="${repoLink}" target="_blank" rel="noopener noreferrer">NPU 规则与成绩 <span>↗</span></a><a class="resource-link" href="${board.upstream}" target="_blank" rel="noopener noreferrer">原始项目 <span>↗</span></a></aside></div>`;
     if (tab === 'evaluation') return `<div class="detail-grid"><div class="content-card"><span class="eyebrow">EVALUATION</span><h2>评测规则</h2><div class="rule-table">${fact('硬件', esc(board.hardware))}${fact('质量门槛', esc(board.target))}${fact('主排名指标', `${esc(board.metric)}，越短越好`)}${fact('计时范围', esc(board.timing))}${fact('改动范围', esc(board.rules))}${fact('证据', '源码、启动命令和完整日志')}</div><div class="notice">原始 GPU 项目的成绩不参与此 NPU 榜单排名。</div></div><aside class="content-card quick-card"><h2>成绩来源</h2><p>当前记录来自 NPU 仓库 README。本站按耗时重新排序，并提供对应源码与日志链接。</p><p>${boardPinned(board) ? `当前数据固定在 Git commit <code>${esc(board.sha.slice(0, 12))}</code>。` : '当前从 GitHub 分支实时读取；链接会随分支更新。'}可在排行榜页面刷新。</p><a class="text-link" href="${repoLink}" target="_blank" rel="noopener noreferrer">阅读仓库规则 ↗</a></aside></div>`;
     if (tab === 'submit') return `<div class="detail-grid"><div class="content-card"><span class="eyebrow">SUBMISSION</span><h2>通过 GitHub PR 提交</h2><p>当前网站展示仓库已收录的成绩，尚无站内自动评测。新方案请按 NPU 仓库规则准备并交由仓库维护者审核。</p><div class="submission-steps"><div><b>01</b><span><strong>阅读规则</strong><small>确认硬件、数据、质量目标与计时范围。</small></span></div><div><b>02</b><span><strong>准备证据</strong><small>保留源码、启动命令、环境与完整日志。</small></span></div><div><b>03</b><span><strong>创建 PR</strong><small>向对应 NPU 仓库提交，等待维护者审核。</small></span></div><div><b>04</b><span><strong>更新榜单</strong><small>仓库 README 收录后，本站刷新即可读取新成绩。</small></span></div></div><a class="button button-primary" href="${board.repo}/compare" target="_blank" rel="noopener noreferrer">前往 GitHub 创建 PR ↗</a></div><aside class="content-card quick-card"><h2>提交前核对</h2><p>${esc(board.target)}。${esc(board.timing)}</p><a class="text-link" href="${repoLink}" target="_blank" rel="noopener noreferrer">阅读完整规则 ↗</a></aside></div>`;
     const best = extraRecords(board)[0];
-    return `<div class="leaderboard-detail"><div class="leaderboard-heading"><div><span class="eyebrow">${esc(board.slug.toUpperCase())} NPU</span><h2>排行榜</h2><p>${esc(board.hardware)} · ${esc(board.target)} · 耗时越短越靠前。</p></div><div class="leaderboard-summary"><strong>${boardScore(board, best.seconds)} <small>${board.unit}</small></strong><span>已收录最快 · ${board.records.length} 条成绩</span></div></div><div class="results-panel"><div class="table-scroll"><table class="results-table"><thead><tr><th>排名</th><th>实现 / 记录</th><th>类型</th><th>耗时</th><th>${esc(board.qualityName)}</th><th>证据</th></tr></thead><tbody>${extraRecords(board).map((record, index) => `<tr data-extra-board="${board.slug}" data-extra-record="${esc(record.id)}" tabindex="0" aria-label="查看第 ${index + 1} 名的成绩详情"><td class="rank-cell">${String(index + 1).padStart(2, '0')}</td><td><strong class="record-title">${esc(record.description)}</strong><small class="record-id">${esc(record.label)}</small></td><td><span class="record-type">${record.type === 'optimized' ? 'NPU 优化' : '直接移植'}</span></td><td class="score-cell">${boardScore(board, record.seconds)} <small>${board.unit}</small></td><td>${esc(record.quality)}</td><td class="evidence-cell">源码与日志 ↗</td></tr>`).join('')}</tbody></table></div><div class="table-foot"><span>${esc(board.metric)} · ${esc(board.target)}</span><span>GitHub ${boardPinned(board) ? 'commit' : '分支'} ${esc(board.sha.slice(0, 12))} <button type="button" data-sync-extra="${board.slug}">从 GitHub 刷新 ↻</button></span></div></div></div>`;
+    return `<div class="leaderboard-detail"><div class="leaderboard-heading"><div><span class="eyebrow">${esc(board.slug.toUpperCase())} NPU</span><h2>排行榜</h2><p>${esc(board.hardware)} · ${esc(board.target)} · 耗时越短越靠前。</p></div><div class="leaderboard-summary"><strong>${boardScore(board, best.seconds)} <small>${board.unit}</small></strong><span>已收录最快 · ${board.records.length} 条成绩</span></div></div><div class="results-panel"><div class="table-scroll"><table class="results-table"><thead><tr><th>排名</th><th>实现 / 记录</th><th>类型</th><th>耗时</th><th>${esc(board.qualityName)}</th><th>证据</th></tr></thead><tbody>${extraRecords(board).map((record, index) => `<tr data-extra-board="${board.slug}" data-extra-record="${esc(record.id)}" tabindex="0" aria-label="查看第 ${index + 1} 名的成绩详情"><td class="rank-cell">${String(index + 1).padStart(2, '0')}</td><td><strong class="record-title">${esc(record.description)}</strong><small class="record-id">${esc(record.label)}</small></td><td><span class="record-type">${record.type === 'optimized' ? 'NPU 优化' : '直接移植'}</span></td><td class="score-cell">${boardScore(board, record.seconds)} <small>${board.unit}</small></td><td>${esc(record.quality)}</td><td class="evidence-cell">源码与日志 ↗</td></tr>`).join('')}</tbody></table></div><div class="table-foot"><span>${esc(board.metric)} · ${esc(board.target)}</span><span>GitHub ${boardPinned(board) ? 'commit' : '分支'} ${esc(board.sha.slice(0, 12))}${board.syncedAt ? ` · 已更新 ${esc(board.syncedAt)}` : ''} <button type="button" data-sync-extra="${board.slug}">从 GitHub 刷新 ↻</button></span></div></div></div>`;
   }
 
   function rowHtml(record, rank) {
@@ -344,31 +344,41 @@
       <div class="drawer-header"><button type="button" id="drawerClose" aria-label="关闭详情">×</button><span class="eyebrow">RANK ${String(rank).padStart(2, '0')} · ${esc(board.title)}</span><h2 id="drawerTitle">${esc(record.description)}</h2><p>${esc(record.label)}</p></div>
       <div class="drawer-content"><div class="drawer-score"><strong>${boardScore(board, record.seconds)} <small>${board.unit}</small></strong><span>${esc(board.hardware)}</span></div><div class="evidence-status">仓库榜单已收录</div>
       <div class="drawer-section"><h3>成绩信息</h3>${fact('类型', record.type === 'optimized' ? 'NPU 专项优化' : '原算法移植')}${fact(board.qualityName, esc(record.quality))}${fact('质量门槛', esc(board.target))}${fact('排名指标', esc(board.metric))}${fact('仓库版本', esc(board.sha.slice(0, 12)))}</div>
-      <div class="drawer-section"><h3>代码与证据</h3><p>${boardPinned(board) ? '源码与日志固定到同一个 Git commit。' : '源码与日志指向 GitHub 分支，内容可能随分支更新。'}具体复现口径请查看仓库 README。</p><a class="resource-link" href="${boardUrl(board, record.folder)}" target="_blank" rel="noopener noreferrer">实现目录 <span>↗</span></a><a class="resource-link" href="${boardUrl(board, record.log, 'blob')}" target="_blank" rel="noopener noreferrer">运行日志 <span>↗</span></a><a class="resource-link" href="${board.repo}/blob/${board.sha}/README.md#npu-leaderboard" target="_blank" rel="noopener noreferrer">仓库榜单 <span>↗</span></a></div></div></aside></div>`;
+      <div class="drawer-section"><h3>代码与证据</h3><p>${boardPinned(board) ? '源码与日志固定到同一个 Git commit。' : '源码与日志指向 GitHub 分支，内容可能随分支更新。'}具体复现口径请查看仓库 README。</p><a class="resource-link" href="${boardUrl(board, record.folder)}" target="_blank" rel="noopener noreferrer">实现目录 <span>↗</span></a><a class="resource-link" href="${boardUrl(board, record.log, 'blob')}" target="_blank" rel="noopener noreferrer">运行日志 <span>↗</span></a><a class="resource-link" href="${board.repo}/blob/${board.sha}/README.md#npu-leaderboard-record-history" target="_blank" rel="noopener noreferrer">仓库榜单 <span>↗</span></a></div></div></aside></div>`;
     document.body.classList.add('drawer-open'); document.getElementById('drawerClose').focus();
   }
   function closeDrawer() { drawerRoot.innerHTML = ''; document.body.classList.remove('drawer-open'); }
 
   function parseExtraReadme(board, text) {
-    const section = text.split('## NPU leaderboard')[1]?.split('## Rules')[0];
-    if (!section) throw new Error('找不到 NPU 榜单章节');
+    const lines = text.split(/\r?\n/);
+    const start = lines.findIndex(line => /^## NPU leaderboard(?: record history)?\s*$/i.test(line.trim()));
+    if (start < 0) throw new Error('找不到 NPU 榜单章节');
+    const end = lines.findIndex((line, index) => index > start && /^##\s+/.test(line));
+    const section = lines.slice(start + 1, end < 0 ? undefined : end);
     const rows = [];
-    for (const line of section.split('\n')) {
-      const cells = line.trim().split('|').map(cell => cell.trim());
-      if (cells.length < 7 || !/^\d+$/.test(cells[1])) continue;
-      const seconds = Number(cells[2].replace(/\*/g, '').match(/[\d.]+/)?.[0]);
+    let recordCount = 0;
+    const root = board.slug === 'airbench' ? 'airbench_npu' : 'nanoVLM_npu';
+    const logPattern = new RegExp(`^${root}/(?:record[\\w-]+|baseline|optimized)/logs/[\\w.-]+\\.log$`);
+    for (const line of section) {
+      if (!line.trim().startsWith('|')) continue;
+      const cells = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+      if (cells.length !== 6 || !/^\d+$/.test(cells[0])) continue;
+      recordCount += 1;
+      const seconds = Number(cells[2].replace(/\*/g, '').match(/\d+(?:\.\d+)?/)?.[0]);
       const qualityText = cells[3].replace(/\*/g, '');
       const quality = Number(qualityText.replace('%', ''));
-      const log = cells[5].match(/\[log\]\(([^)]+)\)/)?.[1];
-      if (!log) continue;
-      const logPattern = board.slug === 'airbench' ? /^airbench_npu\/(?:baseline|optimized)\/logs\/[\w.-]+\.log$/ : /^nanoVLM_npu\/(?:baseline|optimized)\/logs\/[\w.-]+\.log$/;
-      if (!Number.isFinite(seconds) || !Number.isFinite(quality) || !logPattern.test(log)) continue;
+      const log = cells[5].match(/\[log\]\(([^)]+)\)/i)?.[1];
+      if (!Number.isFinite(seconds) || !Number.isFinite(quality) || !log || !logPattern.test(log)) continue;
       const folder = log.split('/logs/')[0];
-      const description = cells[4].replace(/\*\*/g, '').replace(/\\\[/g, '[').replace(/\\\]/g, ']');
-      const optimized = /\[optimized\]/i.test(description);
-      rows.push({ id: `${board.slug}-${folder.split('/').at(-1)}`, label: optimized ? 'NPU 专项优化' : '原算法移植', description: description.replace(/\[optimized\]\s*/i, '').trim(), seconds, quality: qualityText, type: optimized ? 'optimized' : 'baseline', folder, log });
+      const listedRecord = cells[1].replace(/`/g, '');
+      if (listedRecord !== folder && listedRecord !== folder.split('/').at(-1)) continue;
+      const description = cells[4].replace(/\*\*/g, '').replace(/\\([\[\]])/g, '$1').trim();
+      const tag = description.match(/^\[(baseline|optimized(?:_v\d+)?)\]\s*/i);
+      if (!tag) continue;
+      const optimized = tag[1].toLowerCase().startsWith('optimized');
+      rows.push({ id: `${board.slug}-${folder.split('/').at(-1)}`, label: optimized ? 'NPU 专项优化' : '原算法移植', description: description.slice(tag[0].length).trim(), seconds, quality: qualityText, type: optimized ? 'optimized' : 'baseline', folder, log });
     }
-    if (!rows.length) throw new Error('没有找到可解析的 NPU 成绩');
+    if (!rows.length || rows.length !== recordCount) throw new Error('README 榜单格式已变化，无法完整读取成绩');
     return rows;
   }
 
@@ -387,8 +397,9 @@
       if (!response.ok) throw new Error(`README HTTP ${response.status}`);
       const records = parseExtraReadme(board, await response.text());
       board.records = records; board.sha = ref;
+      board.syncedAt = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
       const scrollY = window.scrollY; render(); window.scrollTo(0, scrollY);
-    } catch (error) { if (button) { button.disabled = false; button.textContent = '刷新失败，重试 ↻'; button.title = String(error.message); } }
+    } catch (error) { if (button) { button.disabled = false; button.textContent = '重试刷新 ↻'; button.title = `暂时无法更新成绩，当前成绩未改变：${String(error.message)}`; } }
   }
 
   async function sync() {

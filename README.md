@@ -24,7 +24,7 @@ Benchmarks 与 Leaderboards 目录各有“创建”入口。创建 Benchmark �
 
 `dist/data.js` 是从仓库 README 的 NPU leaderboard 生成的离线快照。页面上的“从 GitHub 刷新”会优先读取 `master` 当前 commit 的 SHA，并按该 SHA 读取 README；成功后将成绩、源码和日志链接固定在同一提交。若 GitHub API 不可用，则回退到直接读取 `master` README；网络不可用时显示离线快照。离线快照中的源码和日志链接指向 `master`，并非固定提交。
 
-`dist/extra-leaderboards.js` 收录 AirBench 和 nanoVLM 各两条 NPU 成绩及其固定 Git commit。两个详情页均可从 GitHub 刷新 README；成功后按耗时排序。能读取 commit SHA 时，说明、实现目录和日志链接固定到同一提交；GitHub API 受限时回退到分支地址，并在页面标明链接会随分支更新。AirBench 的成绩是单张 Ascend 910C 上至少 20 次完整训练的平均耗时及平均 TTA 准确率；nanoVLM 的成绩是 8 张 Ascend NPU 上一次完整运行中 200 个计时 step 的耗时及最终验证损失。
+`dist/extra-leaderboards.js` 收录 AirBench 三条、nanoVLM 两条 NPU 成绩及其固定 Git commit。两个详情页均可从 GitHub 刷新 README；成功后按耗时排序。能读取 commit SHA 时，说明、实现目录和日志链接固定到同一提交；GitHub API 受限时回退到分支地址，并在页面标明链接会随分支更新。AirBench 的成绩是单张 Ascend 910C 上至少 20 次完整训练的平均耗时及平均 TTA 准确率；nanoVLM 的成绩是 8 张 Ascend NPU 上一次完整运行中 200 个计时 step 的耗时及最终验证损失。
 
 “接入已有榜单”保存来源地址、成绩字段、硬件口径和排序规则。保存草稿不会自动读取任意网址或将成绩发布到本站。NanoGPT 的 PR 查询使用 GitHub 公开 API，只展示 GitHub 返回的开放、关闭、草稿或合并状态；是否入榜仍以仓库 README 为准。
 
