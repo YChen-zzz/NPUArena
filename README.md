@@ -1,6 +1,6 @@
 # NPUArena demo
 
-本地演示站，包含静态榜单前端和账号 API。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。三个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
+本地演示站，包含静态榜单前端和账号 API。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/VIT-TIMM-npu`](https://github.com/YChen-zzz/VIT-TIMM-npu)、[`YChen-zzz/Qwen3-transformers-npu`](https://github.com/YChen-zzz/Qwen3-transformers-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。五个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
 
 首页使用线路板动画和完整 NPUArena 名称作为主视觉。NanoGPT 榜单页面分为概览、数据与模型、评测规则、提交、排行榜。正式提交仍走 GitHub PR。站内可查询公开 PR 的 GitHub 状态。
 
@@ -24,7 +24,7 @@ Benchmarks 与 Leaderboards 目录各有“创建”入口。创建 Benchmark �
 
 `dist/data.js` 是从仓库 README 的 NPU leaderboard 生成的离线快照。页面上的“从 GitHub 刷新”会优先读取 `master` 当前 commit 的 SHA，并按该 SHA 读取 README；成功后将成绩、源码和日志链接固定在同一提交。若 GitHub API 不可用，则回退到直接读取 `master` README；网络不可用时显示离线快照。离线快照中的源码和日志链接指向 `master`，并非固定提交。
 
-`dist/extra-leaderboards.js` 收录 AirBench 三条、nanoVLM 两条 NPU 成绩及其固定 Git commit。两个详情页均可从 GitHub 刷新 README；成功后按耗时排序。能读取 commit SHA 时，说明、实现目录和日志链接固定到同一提交；GitHub API 受限时回退到分支地址，并在页面标明链接会随分支更新。AirBench 的成绩是单张 Ascend 910C 上至少 20 次完整训练的平均耗时及平均 TTA 准确率；nanoVLM 的成绩是 8 张 Ascend NPU 上一次完整运行中 200 个计时 step 的耗时及最终验证损失。
+`dist/extra-leaderboards.js` 收录 ViT-TIMM 两条、Qwen3 两条、AirBench 三条和 nanoVLM 两条 NPU 成绩。ViT-TIMM 与 Qwen3 的成绩直接读取各仓库最新 commit 的 README；源码与日志按 README 中的记录链接打开。四个详情页均可从 GitHub 刷新 README；成功后按耗时排序。AirBench 和 nanoVLM 读取到 commit SHA 时，说明、实现目录和日志链接固定到同一提交；ViT-TIMM 和 Qwen3 的每条记录按 README 表格中的记录版本打开源码和日志。GitHub API 受限时，README 刷新回退到分支地址。AirBench 的成绩是单张 Ascend 910C 上至少 20 次完整训练的平均耗时及平均 TTA 准确率；nanoVLM 的成绩是 8 张 Ascend NPU 上一次完整运行中 200 个计时 step 的耗时及最终验证损失。
 
 “接入已有榜单”保存来源地址、成绩字段、硬件口径和排序规则。保存草稿不会自动读取任意网址或将成绩发布到本站。NanoGPT 的 PR 查询使用 GitHub 公开 API，只展示 GitHub 返回的开放、关闭、草稿或合并状态；是否入榜仍以仓库 README 为准。
 

@@ -1,9 +1,64 @@
-// Published results from the two NPU repository READMEs. Links are pinned to
-// the commits read on 2026-10-19; the detail pages can refresh from GitHub.
+// Published results from four NPU repository READMEs. Score snapshots use the
+// latest README; record source/log links follow the versions listed there.
 window.NPU_ARENA_LEADERBOARDS = {
+  'vit-timm': {
+    slug: 'vit-timm',
+    displayOrder: 1,
+    title: 'ViT-TIMM · NPU',
+    repo: 'https://github.com/YChen-zzz/VIT-TIMM-npu',
+    upstream: 'https://github.com/huggingface/pytorch-image-models',
+    branch: 'main',
+    sha: '2f351e078abeff73acea883320cddf29c17662a6',
+    sectionHeading: 'NPU leaderboard record history',
+    sectionAnchor: 'npu-leaderboard-record-history',
+    recordMode: 'tagged',
+    hardware: '4× Ascend 910C · 8 die',
+    dataset: 'CIFAR-10',
+    model: 'timm vit_base_patch16_224（ViT-B/16）',
+    target: '最终 train loss 0.08390 ± 0.01',
+    metric: '200 epoch 稳定训练时间',
+    unit: 's',
+    precision: 2,
+    summary: '在 4 张 Ascend 910C 上从零训练 ViT-B/16，比较同一训练任务与质量门槛下的耗时。',
+    timing: '200 个 epoch 的稳定训练时间；首个预热 epoch、验证和进程启动不计入。',
+    rules: '保持模型、CIFAR-10 数据顺序、seed、batch、epoch 和学习率日程；最终 train loss 在 0.08390 ± 0.01 内，loss 曲线均值相对误差低于 5%。',
+    qualityName: '最终 train loss',
+    secondaryQualityName: 'Eval top1',
+    records: [
+      { id: 'vit-timm-record02_optimization', label: 'NPU 专项优化', description: 'patchify Linear, async gradient buckets, flat-gradient view, deferred loss metrics, bucket-local Adam', seconds: 1386.06, quality: '0.083367832', secondaryQuality: '84.22%', type: 'optimized', folder: 'source', log: 'logs/record02_optimization_20261017_201347.log', ref: 'record02_optimization' },
+      { id: 'vit-timm-record01_kerminal_migration', label: '原算法移植', description: 'original NPU port', seconds: 1734.82, quality: '0.084322795', secondaryQuality: '84.01%', type: 'baseline', folder: 'source', log: 'logs/record01_kerminal_migration_20261017_201347.log', ref: 'record01_kerminal_migration' }
+    ]
+  },
+  qwen3: {
+    slug: 'qwen3',
+    displayOrder: 2,
+    title: 'Qwen3-0.6B · NPU',
+    repo: 'https://github.com/YChen-zzz/Qwen3-transformers-npu',
+    upstream: 'https://github.com/huggingface/transformers',
+    branch: 'main',
+    sha: '5ec51a278e3012a6e19ce6e455d366322d48af2f',
+    sectionHeading: 'Record 概览',
+    sectionAnchor: 'record-概览',
+    recordMode: 'tagged',
+    hardware: '8× Ascend 910C · 16 die',
+    dataset: 'packed SlimPajama-6B',
+    model: 'Qwen3-0.6B · Transformers Trainer',
+    target: '最终 val loss 3.65582895 ± 0.01',
+    metric: '2000 step 完整训练时间',
+    unit: 's',
+    precision: 2,
+    summary: '在 8 张 Ascend 910C 上从随机权重预训练 Qwen3-0.6B，比较包含验证的完整训练时间。',
+    timing: '2000 个 optimizer step 的完整运行时间，包含训练中的四次验证；不含作业排队和容器启动。',
+    rules: '保持模型、数据顺序、seed、batch、梯度累积、step 数和学习率日程；最终 val loss 在 3.65582895 ± 0.01 内。',
+    qualityName: '最终 val loss',
+    records: [
+      { id: 'qwen3-record02_optimization', label: 'NPU 专项优化', description: '本地 RMSNorm/SwiGLU、fused AdamW、FA2、fused LM-head/native NPU CE、deferred loss filter、DDP bucket 256 MiB / HCCL buffer 128 MiB', seconds: 1455.01, quality: '3.66289377', type: 'optimized', folder: 'source', log: 'logs/record02_optimization.log', ref: 'record02_optimization' },
+      { id: 'qwen3-record01_kerminal_migration', label: '原算法移植', description: 'SDPA，标准 AdamW', seconds: 2437.64, quality: '3.65792727', type: 'baseline', folder: 'source', log: 'logs/record01_kerminal_migration.log', ref: 'record01_kerminal_migration' }
+    ]
+  },
   airbench: {
     slug: 'airbench',
-    displayOrder: 2,
+    displayOrder: 3,
     title: 'CIFAR-10 Airbench · NPU',
     repo: 'https://github.com/YChen-zzz/cifar10-airbench-npu',
     upstream: 'https://github.com/KellerJordan/cifar10-airbench',
@@ -28,12 +83,12 @@ window.NPU_ARENA_LEADERBOARDS = {
   },
   nanovlm: {
     slug: 'nanovlm',
-    displayOrder: 1,
+    displayOrder: 4,
     title: 'nanoVLM · NPU',
     repo: 'https://github.com/YChen-zzz/nanoVLM-npu',
     upstream: 'https://github.com/huggingface/nanoVLM',
     branch: 'main',
-    sha: '88bb0e7b243ac125ab1449b26d4e01096198d12d',
+    sha: '3ed676f9c3bbd183069c2af5530405625a48be58',
     hardware: '8× Ascend NPU · 16 die',
     dataset: 'FineVision',
     model: 'SigLIP2 + SmolLM2 视觉语言模型',
