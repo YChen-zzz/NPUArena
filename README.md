@@ -1,6 +1,6 @@
-# NPUArena demo
+# NPUArena
 
-本地演示站，包含静态榜单前端和账号 API。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/VIT-TIMM-npu`](https://github.com/YChen-zzz/VIT-TIMM-npu)、[`YChen-zzz/Qwen3-transformers-npu`](https://github.com/YChen-zzz/Qwen3-transformers-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。五个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
+NPU 性能挑战与排行榜平台，包含榜单前端和账号 API。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/VIT-TIMM-npu`](https://github.com/YChen-zzz/VIT-TIMM-npu)、[`YChen-zzz/Qwen3-transformers-npu`](https://github.com/YChen-zzz/Qwen3-transformers-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。五个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
 
 首页使用线路板动画和完整 NPUArena 名称作为主视觉。NanoGPT 榜单页面分为概览、数据与模型、评测规则、提交、排行榜。正式提交仍走 GitHub PR。站内可查询公开 PR 的 GitHub 状态。
 
