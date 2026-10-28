@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import os
 import sqlite3
 import time
@@ -97,6 +98,12 @@ class Database:
                     created_at BIGINT NOT NULL
                 )"""
             )
+            if self.url:
+                connection.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member'")
+            else:
+                columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+                if "role" not in columns:
+                    connection.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'")
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS sessions (
                     token_hash TEXT PRIMARY KEY,
@@ -106,9 +113,35 @@ class Database:
                 )"""
             )
             connection.execute("CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions (expires_at)")
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS pending_registrations (
+                    email TEXT PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    expires_at BIGINT NOT NULL
+                )"""
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS pending_registrations_expires_at_idx ON pending_registrations (expires_at)")
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS rate_limit_events (
+                    bucket_key TEXT NOT NULL,
+                    created_at BIGINT NOT NULL
+                )"""
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS rate_limit_events_key_time_idx ON rate_limit_events (bucket_key, created_at)")
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS leaderboard_drafts (
+                    id TEXT PRIMARY KEY,
+                    data_json TEXT NOT NULL,
+                    created_by TEXT NOT NULL REFERENCES users(id),
+                    created_at BIGINT NOT NULL,
+                    updated_at BIGINT NOT NULL
+                )"""
+            )
 
     def create_user(self, display_name: str, email: str, password: str) -> dict:
-        user = {"id": str(uuid.uuid4()), "displayName": display_name, "email": email}
+        user = {"id": str(uuid.uuid4()), "displayName": display_name, "email": email, "role": "member"}
         password_hash = hash_password(password)
         try:
             with self.connection() as connection:
@@ -125,7 +158,7 @@ class Database:
     def user_by_email(self, email: str):
         with self.connection() as connection:
             row = connection.execute(
-                f"SELECT id, display_name, email, password_hash FROM users WHERE email = {self.placeholder}",
+                f"SELECT id, display_name, email, password_hash, role FROM users WHERE email = {self.placeholder}",
                 (email,),
             ).fetchone()
         return dict(row) if row else None
@@ -142,14 +175,134 @@ class Database:
     def user_by_session(self, token_hash: str):
         with self.connection() as connection:
             row = connection.execute(
-                f"""SELECT users.id, users.display_name, users.email
+                f"""SELECT users.id, users.display_name, users.email, users.role
                     FROM sessions JOIN users ON users.id = sessions.user_id
                     WHERE sessions.token_hash = {self.placeholder} AND sessions.expires_at > {self.placeholder}""",
                 (token_hash, int(time.time())),
             ).fetchone()
         if not row:
             return None
-        return {"id": row["id"], "displayName": row["display_name"], "email": row["email"]}
+        return {"id": row["id"], "displayName": row["display_name"], "email": row["email"], "role": row["role"]}
+
+    def set_user_role(self, email: str, role: str) -> bool:
+        if role not in {"member", "admin"}:
+            raise ValueError("Invalid role")
+        with self.connection() as connection:
+            cursor = connection.execute(
+                f"UPDATE users SET role = {self.placeholder} WHERE email = {self.placeholder}",
+                (role, email.strip().lower()),
+            )
+            return cursor.rowcount == 1
+
+    def registration_allowed(self, ip: str, email: str) -> bool:
+        now = int(time.time())
+        domain = email.rsplit("@", 1)[-1]
+        rules = [
+            (f"register:ip:{ip}", 15 * 60, 5),
+            (f"register:email:{email}", 60 * 60, 3),
+            (f"register:domain:{domain}", 24 * 60 * 60, 20),
+            ("register:global", 24 * 60 * 60, 30),
+        ]
+        with self.connection() as connection:
+            if self.kind == "sqlite":
+                connection.execute("BEGIN IMMEDIATE")
+            else:
+                connection.execute("SELECT pg_advisory_xact_lock(76191001)")
+            connection.execute(f"DELETE FROM rate_limit_events WHERE created_at < {self.placeholder}", (now - 24 * 60 * 60,))
+            for key, window, limit in rules:
+                row = connection.execute(
+                    f"SELECT COUNT(*) AS event_count FROM rate_limit_events WHERE bucket_key = {self.placeholder} AND created_at > {self.placeholder}",
+                    (key, now - window),
+                ).fetchone()
+                count = row[0] if self.kind == "sqlite" else row["event_count"]
+                if count >= limit:
+                    return False
+            for key, _, _ in rules:
+                connection.execute(
+                    f"INSERT INTO rate_limit_events (bucket_key, created_at) VALUES ({self.placeholder}, {self.placeholder})",
+                    (key, now),
+                )
+        return True
+
+    def save_pending_registration(self, display_name: str, email: str, password_hash: str, token_hash: str, lifetime_seconds: int) -> None:
+        expires_at = int(time.time()) + lifetime_seconds
+        with self.connection() as connection:
+            connection.execute(
+                f"""INSERT INTO pending_registrations (email, display_name, password_hash, token_hash, expires_at)
+                    VALUES ({','.join([self.placeholder] * 5)})
+                    ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name,
+                    password_hash = EXCLUDED.password_hash, token_hash = EXCLUDED.token_hash,
+                    expires_at = EXCLUDED.expires_at""",
+                (email, display_name, password_hash, token_hash, expires_at),
+            )
+            connection.execute(f"DELETE FROM pending_registrations WHERE expires_at <= {self.placeholder}", (int(time.time()),))
+
+    def consume_pending_registration(self, token_hash: str) -> dict | None:
+        now = int(time.time())
+        try:
+            with self.connection() as connection:
+                if self.kind == "sqlite":
+                    connection.execute("BEGIN IMMEDIATE")
+                query = f"SELECT email, display_name, password_hash FROM pending_registrations WHERE token_hash = {self.placeholder} AND expires_at > {self.placeholder}"
+                if self.kind == "postgresql":
+                    query += " FOR UPDATE"
+                row = connection.execute(query, (token_hash, now)).fetchone()
+                if not row:
+                    return None
+                user = {"id": str(uuid.uuid4()), "displayName": row["display_name"], "email": row["email"], "role": "member"}
+                connection.execute(
+                    f"INSERT INTO users (id, display_name, email, password_hash, created_at) VALUES ({','.join([self.placeholder] * 5)})",
+                    (user["id"], user["displayName"], user["email"], row["password_hash"], now),
+                )
+                connection.execute(f"DELETE FROM pending_registrations WHERE token_hash = {self.placeholder}", (token_hash,))
+                return user
+        except Exception as error:
+            if isinstance(error, sqlite3.IntegrityError) or getattr(error, "sqlstate", None) == "23505":
+                return None
+            raise
+
+    def list_leaderboard_drafts(self) -> list[dict]:
+        with self.connection() as connection:
+            rows = connection.execute("SELECT data_json FROM leaderboard_drafts ORDER BY updated_at DESC").fetchall()
+        return [json.loads(row["data_json"]) for row in rows]
+
+    def leaderboard_draft(self, draft_id: str) -> dict | None:
+        with self.connection() as connection:
+            row = connection.execute(
+                f"SELECT data_json FROM leaderboard_drafts WHERE id = {self.placeholder}", (draft_id,)
+            ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def save_leaderboard_draft(self, data: dict, user_id: str, draft_id: str | None = None) -> dict | None:
+        now = int(time.time())
+        with self.connection() as connection:
+            if draft_id:
+                row = connection.execute(
+                    f"SELECT data_json FROM leaderboard_drafts WHERE id = {self.placeholder}", (draft_id,)
+                ).fetchone()
+                if not row:
+                    return None
+                original = json.loads(row["data_json"])
+                item = {**data, "id": draft_id, "createdAt": original["createdAt"], "updatedAt": now}
+                connection.execute(
+                    f"UPDATE leaderboard_drafts SET data_json = {self.placeholder}, updated_at = {self.placeholder} WHERE id = {self.placeholder}",
+                    (json.dumps(item, ensure_ascii=False), now, draft_id),
+                )
+            else:
+                draft_id = str(uuid.uuid4())
+                item = {**data, "id": draft_id, "createdAt": now, "updatedAt": now}
+                connection.execute(
+                    f"INSERT INTO leaderboard_drafts (id, data_json, created_by, created_at, updated_at) VALUES ({','.join([self.placeholder] * 5)})",
+                    (draft_id, json.dumps(item, ensure_ascii=False), user_id, now, now),
+                )
+        return item
+
+    def delete_leaderboard_draft(self, draft_id: str) -> bool:
+        with self.connection() as connection:
+            cursor = connection.execute(
+                f"DELETE FROM leaderboard_drafts WHERE id = {self.placeholder}", (draft_id,)
+            )
+            return cursor.rowcount == 1
 
     def delete_session(self, token_hash: str) -> None:
         with self.connection() as connection:
