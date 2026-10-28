@@ -422,7 +422,7 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
                     return
                 self.json_response(HTTPStatus.UNAUTHORIZED, {"error": "邮箱或密码不正确。"})
                 return
-            database.clear_failed_logins(email)
+            database.clear_login_failures(email, self.client_ip())
             self.new_session({"id": user["id"], "displayName": user["display_name"], "email": user["email"], "role": user["role"]})
 
         def do_PUT(self):

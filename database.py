@@ -301,11 +301,12 @@ class Database:
             )
         return True
 
-    def clear_failed_logins(self, email: str) -> None:
+    def clear_login_failures(self, email: str, ip: str) -> None:
+        """A successful admin login resets this account and source IP's counters."""
         with self.connection() as connection:
             connection.execute(
-                f"DELETE FROM rate_limit_events WHERE bucket_key = {self.placeholder}",
-                (self._login_email_key(email),),
+                f"DELETE FROM rate_limit_events WHERE bucket_key IN ({self.placeholder}, {self.placeholder})",
+                (self._login_email_key(email), f"login:ip:{ip}"),
             )
 
     def create_community_submission(self, email: str, ip: str, payload: dict, receipt_hash: str) -> dict | None:

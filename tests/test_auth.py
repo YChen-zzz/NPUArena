@@ -171,6 +171,20 @@ class AccountApiTest(unittest.TestCase):
             "email": "another@example.com", "password": "wrong-password"
         })[0], 429)
 
+    def test_correct_password_clears_account_and_ip_failures(self):
+        self.database.create_admin("Admin", "admin@example.com", "long-admin-password-123")
+        for _ in range(11):
+            self.assertEqual(self.request("/api/auth/login", {
+                "email": "admin@example.com", "password": "wrong-password"
+            })[0], 401)
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "admin@example.com", "password": "long-admin-password-123"
+        })[0], 200)
+        for _ in range(3):
+            self.assertEqual(self.request("/api/auth/login", {
+                "email": "admin@example.com", "password": "wrong-password"
+            })[0], 401)
+
     def test_distributed_login_limit_survives_restart(self):
         for index in range(120):
             self.assertTrue(self.database.reserve_login_attempt(f"198.51.100.{index + 1}"))
