@@ -32,6 +32,8 @@ AUTH_PATHS = {"/api/auth/register", "/api/auth/verify", "/api/auth/login", "/api
 VERIFY_SECONDS = 15 * 60
 REGISTER_MESSAGE = "如果该邮箱可以注册，我们已发送确认邮件。请在 15 分钟内完成验证。"
 DRAFTS_PATH = "/api/leaderboards/drafts"
+SUBMISSIONS_PATH = "/api/submissions"
+ADMIN_SUBMISSIONS_PATH = "/api/admin/submissions"
 DRAFT_FIELDS = {
     "title": 100, "category": 20, "summary": 2000, "hardware": 300,
     "workload": 300, "model": 1000, "target": 500, "metric": 300,
@@ -80,6 +82,30 @@ def validate_draft(data: dict) -> dict:
         if values[field] and urlsplit(values[field]).scheme not in {"http", "https"}:
             raise ValueError("链接必须以 http:// 或 https:// 开头。")
     return values
+
+
+def validate_community_submission(data: dict) -> tuple[str, dict]:
+    limits = {"kind": 20, "category": 20, "title": 100, "summary": 1200,
+              "repoUrl": 500, "email": 254, "hardware": 300, "metric": 300, "quality": 300}
+    values = {}
+    for field, limit in limits.items():
+        value = data.get(field, "")
+        if not isinstance(value, str) or len(value.strip()) > limit:
+            raise ValueError("字段格式无效或内容过长。")
+        values[field] = value.strip()
+    values["email"] = values["email"].lower()
+    if values["kind"] not in {"benchmark", "leaderboard"} or values["category"] not in {"training", "inference", "kernel"}:
+        raise ValueError("请选择提交类型和加速方向。")
+    if not 3 <= len(values["title"]) <= 100 or not 20 <= len(values["summary"]) <= 1200:
+        raise ValueError("标题至少 3 字，说明至少 20 字。")
+    if not EMAIL_PATTERN.fullmatch(values["email"]):
+        raise ValueError("请输入有效的联系邮箱。")
+    repo = urlsplit(values["repoUrl"])
+    if repo.scheme != "https" or repo.hostname != "github.com" or repo.username or repo.password or repo.query or repo.fragment or not re.fullmatch(r"/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/?", repo.path):
+        raise ValueError("请填写 GitHub 仓库主页链接。")
+    email = values.pop("email")
+    values["repoUrl"] = f"https://github.com{repo.path.rstrip('/')}"
+    return email, values
 
 
 def handler_for(database: Database, mailer=send_verification_email, challenge_verifier=verify_turnstile):
@@ -197,6 +223,17 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
 
         def do_GET(self):
             path = urlsplit(self.path).path
+            if path == f"{SUBMISSIONS_PATH}/public" or path == ADMIN_SUBMISSIONS_PATH:
+                if not self.secure_auth_origin():
+                    self.json_response(HTTPStatus.FORBIDDEN, {"error": "提交操作需要 HTTPS。"})
+                    return
+                if path == f"{SUBMISSIONS_PATH}/public":
+                    self.json_response(HTTPStatus.OK, {"submissions": database.list_community_submissions(public_only=True)})
+                    return
+                if path == ADMIN_SUBMISSIONS_PATH:
+                    if self.require_admin():
+                        self.json_response(HTTPStatus.OK, {"submissions": database.list_community_submissions()})
+                    return
             if path == "/api/auth/config":
                 self.json_response(HTTPStatus.OK, {
                     "turnstileSiteKey": os.environ.get("TURNSTILE_SITE_KEY", "").strip(),
@@ -229,6 +266,53 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
 
         def do_POST(self):
             path = urlsplit(self.path).path
+            review_match = re.fullmatch(r"/api/admin/submissions/([0-9a-f-]{36})/review", path)
+            if path in {SUBMISSIONS_PATH, f"{SUBMISSIONS_PATH}/receipt"} or review_match:
+                if not self.secure_auth_origin():
+                    self.json_response(HTTPStatus.FORBIDDEN, {"error": "提交操作需要 HTTPS。"})
+                    return
+                if not self.same_origin():
+                    self.json_response(HTTPStatus.FORBIDDEN, {"error": "请求来源无效。"})
+                    return
+                if review_match and not self.require_admin():
+                    return
+                data = self.read_json()
+                if data is None:
+                    return
+                if path == f"{SUBMISSIONS_PATH}/receipt":
+                    receipt = data.get("receipt", "")
+                    if not isinstance(receipt, str) or not re.fullmatch(r"[A-Za-z0-9_-]{40,120}", receipt):
+                        self.json_response(HTTPStatus.NOT_FOUND, {"error": "找不到这条提交。"})
+                        return
+                    submission = database.community_submission_by_receipt(token_hash(receipt))
+                    self.json_response(HTTPStatus.OK if submission else HTTPStatus.NOT_FOUND,
+                                       {"submission": submission} if submission else {"error": "找不到这条提交。"})
+                    return
+                if review_match:
+                    status = data.get("status")
+                    note = data.get("note", "")
+                    if status not in {"approved", "rejected"} or not isinstance(note, str) or len(note.strip()) > 1000:
+                        self.json_response(HTTPStatus.BAD_REQUEST, {"error": "审核状态或备注无效。"})
+                        return
+                    item = database.review_community_submission(review_match.group(1), status, note.strip())
+                    self.json_response(HTTPStatus.OK if item else HTTPStatus.NOT_FOUND,
+                                       {"submission": item} if item else {"error": "找不到这条提交。"})
+                    return
+                if data.get("website", ""):
+                    self.json_response(HTTPStatus.ACCEPTED, {"message": "提交已收到。"})
+                    return
+                try:
+                    email, proposal = validate_community_submission(data)
+                except ValueError as error:
+                    self.json_response(HTTPStatus.BAD_REQUEST, {"error": str(error)})
+                    return
+                receipt = secrets.token_urlsafe(32)
+                item = database.create_community_submission(email, self.client_ip(), proposal, token_hash(receipt))
+                if not item:
+                    self.json_response(HTTPStatus.TOO_MANY_REQUESTS, {"error": "提交过于频繁，请稍后再试。"})
+                    return
+                self.json_response(HTTPStatus.ACCEPTED, {"receipt": receipt, "status": "pending"})
+                return
             if path in {"/api/auth/register", "/api/auth/verify"} and os.environ.get("PUBLIC_REGISTRATION_ENABLED", "").lower() != "true":
                 self.json_response(HTTPStatus.NOT_FOUND, {"error": "公开注册已关闭。"})
                 return

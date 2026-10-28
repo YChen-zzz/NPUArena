@@ -139,6 +139,19 @@ class Database:
                     updated_at BIGINT NOT NULL
                 )"""
             )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS community_submissions (
+                    id TEXT PRIMARY KEY,
+                    receipt_hash TEXT NOT NULL UNIQUE,
+                    email TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    review_note TEXT NOT NULL DEFAULT '',
+                    created_at BIGINT NOT NULL,
+                    updated_at BIGINT NOT NULL
+                )"""
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS community_submissions_status_idx ON community_submissions (status, created_at)")
 
     def create_user(self, display_name: str, email: str, password: str) -> dict:
         user = {"id": str(uuid.uuid4()), "displayName": display_name, "email": email, "role": "member"}
@@ -238,6 +251,85 @@ class Database:
                     (key, now),
                 )
         return True
+
+    def create_community_submission(self, email: str, ip: str, payload: dict, receipt_hash: str) -> dict | None:
+        """Atomically enforce quotas and save a proposal; None means rate limited."""
+        now = int(time.time())
+        email_digest = hashlib.sha256(email.encode("utf-8")).hexdigest()
+        rules = [
+            (f"proposal:email:{email_digest}", 2 * 60 * 60, 1),
+            (f"proposal:ip:{ip}", 2 * 60 * 60, 4),
+            ("proposal:global", 24 * 60 * 60, 80),
+        ]
+        item = {"id": str(uuid.uuid4()), **payload, "status": "pending", "createdAt": now, "updatedAt": now}
+        with self.connection() as connection:
+            if self.kind == "sqlite":
+                connection.execute("BEGIN IMMEDIATE")
+            else:
+                connection.execute("SELECT pg_advisory_xact_lock(76191002)")
+            connection.execute(f"DELETE FROM rate_limit_events WHERE created_at < {self.placeholder}", (now - 24 * 60 * 60,))
+            for key, window, limit in rules:
+                row = connection.execute(
+                    f"SELECT COUNT(*) AS event_count FROM rate_limit_events WHERE bucket_key = {self.placeholder} AND created_at > {self.placeholder}",
+                    (key, now - window),
+                ).fetchone()
+                count = row[0] if self.kind == "sqlite" else row["event_count"]
+                if count >= limit:
+                    return None
+            connection.execute(
+                f"INSERT INTO community_submissions (id, receipt_hash, email, payload_json, status, created_at, updated_at) VALUES ({','.join([self.placeholder] * 7)})",
+                (item["id"], receipt_hash, email, json.dumps(payload, ensure_ascii=False), "pending", now, now),
+            )
+            for key, _, _ in rules:
+                connection.execute(
+                    f"INSERT INTO rate_limit_events (bucket_key, created_at) VALUES ({self.placeholder}, {self.placeholder})",
+                    (key, now),
+                )
+        return item
+
+    @staticmethod
+    def _submission(row, include_email: bool = False) -> dict:
+        payload = json.loads(row["payload_json"])
+        result = {"id": row["id"], **payload, "status": row["status"],
+                  "reviewNote": row["review_note"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+        if include_email:
+            result["email"] = row["email"]
+        return result
+
+    def list_community_submissions(self, public_only: bool = False) -> list[dict]:
+        with self.connection() as connection:
+            if public_only:
+                rows = connection.execute("SELECT * FROM community_submissions WHERE status = 'approved' ORDER BY updated_at DESC").fetchall()
+            else:
+                rows = connection.execute("SELECT * FROM community_submissions ORDER BY created_at DESC").fetchall()
+        items = [self._submission(row, include_email=not public_only) for row in rows]
+        if public_only:
+            for item in items:
+                item.pop("reviewNote", None)
+        return items
+
+    def community_submission_by_receipt(self, receipt_hash: str) -> dict | None:
+        with self.connection() as connection:
+            row = connection.execute(
+                f"SELECT * FROM community_submissions WHERE receipt_hash = {self.placeholder}", (receipt_hash,)
+            ).fetchone()
+        return self._submission(row) if row else None
+
+    def review_community_submission(self, submission_id: str, status: str, note: str) -> dict | None:
+        if status not in {"approved", "rejected"}:
+            raise ValueError("Invalid review status")
+        now = int(time.time())
+        with self.connection() as connection:
+            cursor = connection.execute(
+                f"UPDATE community_submissions SET status = {self.placeholder}, review_note = {self.placeholder}, updated_at = {self.placeholder} WHERE id = {self.placeholder}",
+                (status, note, now, submission_id),
+            )
+            if cursor.rowcount != 1:
+                return None
+            row = connection.execute(
+                f"SELECT * FROM community_submissions WHERE id = {self.placeholder}", (submission_id,)
+            ).fetchone()
+        return self._submission(row, include_email=True)
 
     def save_pending_registration(self, display_name: str, email: str, password_hash: str, token_hash: str, lifetime_seconds: int) -> None:
         expires_at = int(time.time()) + lifetime_seconds

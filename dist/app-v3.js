@@ -10,7 +10,8 @@
   const state = {
     records: window.NPU_SNAPSHOT || [], source: '离线快照', syncedAt: null, snapshotSha: null,
     recordFilter: 'all', recordSearch: '', category: 'all', leaderboardCategory: 'all', template: 'training',
-    user: null, authChecked: false, authError: '', leaderboardDrafts: [], leaderboardDraftsError: ''
+    user: null, authChecked: false, authError: '', leaderboardDrafts: [], leaderboardDraftsError: '',
+    communityPublic: [], communityAdmin: [], proposalPrefill: null
   };
   let stopAnimation = () => {};
 
@@ -20,7 +21,7 @@
   const fastest = () => leaders()[0];
   const optimizedCount = () => state.records.filter(record => record.optimized).length;
   const isAdmin = () => state.user?.role === 'admin';
-  const adminGate = () => `<div class="page container account-page"><div class="account-card"><span class="eyebrow">ADMIN ACCESS</span><h1>${state.authChecked ? '仅管理员可管理 Leaderboard' : '正在检查账号…'}</h1><p>${state.authChecked ? state.user ? '当前账号没有管理员权限。请使用管理员账号登录。' : '创建、修改和接入 Leaderboard 需要管理员账号。' : '请稍候。'}</p>${state.authChecked ? `<a class="button button-primary" href="${state.user ? '#/account' : '#/account/login'}">${state.user ? '查看账号' : '登录管理员账号'}</a>` : ''}</div></div>`;
+  const adminGate = () => `<div class="page container account-page"><div class="account-card"><span class="eyebrow">ADMIN ACCESS</span><h1>${state.authChecked ? '仅管理员可进行管理操作' : '正在检查账号…'}</h1><p>${state.authChecked ? state.user ? '当前账号没有管理员权限。请使用管理员账号登录。' : '审核提案、创建和修改 Leaderboard 需要管理员账号。' : '请稍候。'}</p>${state.authChecked ? `<a class="button button-primary" href="${state.user ? '#/account' : '#/account/login'}">${state.user ? '查看账号' : '登录管理员账号'}</a>` : ''}</div></div>`;
   const safeRecordUrl = url => /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:blob|tree)\/(?:master|[a-f0-9]{40})\/[\w./-]+$/.test(url) ? url : REPO;
   const versionedUrl = url => safeRecordUrl(state.snapshotSha ? url.replace('/master/', `/${state.snapshotSha}/`) : url);
 
@@ -90,7 +91,7 @@
         </svg>
         <h1>NPUArena</h1>
       </div></div></section>
-      <div class="home-intro container"><a class="button button-primary" href="#/leaderboards">查看 Leaderboards ↗</a><a class="text-link" href="#/benchmarks">浏览 Benchmarks →</a></div>
+      <div class="home-intro container"><a class="button button-primary" href="#/leaderboards">查看 Leaderboards ↗</a><a class="text-link" href="#/benchmarks">浏览 Benchmarks →</a><a class="text-link" href="#/submit">提交新赛题或榜单 →</a></div>
       <section class="section container"><div class="section-heading"><h2>排行榜</h2><a class="section-more" href="#/leaderboards">查看全部 →</a></div>${leaderboardFeature()}<div class="board-card-grid">${extraList().map(extraBoardCard).join('')}</div></section>
       <section class="section container" id="directions"><div class="section-heading"><h2>分类</h2></div><div class="direction-grid">
         <a class="direction-card" href="#/leaderboards?category=training"><span class="direction-icon">01</span><h3>训练加速</h3><span class="direction-count">${1 + extraList().length} 个 Leaderboard <b>→</b></span></a>
@@ -100,21 +101,53 @@
     </div>`;
   }
 
+  const proposalKind = kind => kind === 'benchmark' ? 'Benchmark' : 'Leaderboard';
+  const proposalCategory = category => ({ training: '训练加速', inference: '推理加速', kernel: '算子加速' })[category] || '未分类';
+  function communitySection(kind, category = 'all') {
+    const items = state.communityPublic.filter(item => item.kind === kind && (category === 'all' || item.category === category));
+    if (!items.length) return '';
+    return `<section class="community-section"><div class="section-heading"><h2>社区提案</h2><span>管理员已审核 · 提案尚未接入自动评测</span></div><div class="board-card-grid">${items.map(item => `<article class="board-card community-card"><div class="board-card-top"><span class="category-label">${proposalCategory(item.category)}</span><span class="status-dot">社区提案</span></div><h3><a href="#/community/${esc(item.id)}">${esc(item.title)}</a></h3><p>${esc(item.summary)}</p><div class="board-card-facts"><span>${proposalKind(item.kind)}</span>${item.hardware ? `<span>${esc(item.hardware)}</span>` : ''}${item.metric ? `<span>${esc(item.metric)}</span>` : ''}</div><div class="board-card-bottom"><small>审核通过后展示</small><a class="button button-outline button-small" href="#/community/${esc(item.id)}">查看提案 →</a></div></article>`).join('')}</div></section>`;
+  }
+
+  function proposalPage(kind) {
+    const current = kind === 'leaderboard' ? 'leaderboard' : 'benchmark';
+    const prefill = current === 'benchmark' ? state.proposalPrefill || {} : {};
+    const v = key => esc(prefill[key] || '');
+    return `<div class="page container"><div class="breadcrumbs"><a href="#/">首页</a><span>›</span><span>提交提案</span></div><div class="page-intro"><span class="eyebrow">COMMUNITY SUBMISSION</span><h1>提交新赛题或榜单</h1><p>无需注册。填写简要信息，管理员审核通过后会以社区提案展示；已有榜单的成绩仍按各项目的 GitHub PR 规则提交。</p></div><div class="community-layout"><form id="proposalForm" class="editor-form"><div class="form-section"><h2>提案内容</h2><div class="field-grid"><label class="field">类型 *<select name="kind" required><option value="benchmark" ${current === 'benchmark' ? 'selected' : ''}>Benchmark 评测任务</option><option value="leaderboard" ${current === 'leaderboard' ? 'selected' : ''}>Leaderboard 榜单</option></select></label><label class="field">加速方向 *<select name="category" required><option value="training" ${prefill.category === 'training' ? 'selected' : ''}>训练加速</option><option value="inference" ${prefill.category === 'inference' ? 'selected' : ''}>推理加速</option><option value="kernel" ${prefill.category === 'kernel' ? 'selected' : ''}>算子加速</option></select></label><label class="field full">标题 *<input name="title" required minlength="3" maxlength="100" value="${v('title')}" placeholder="例如：8× Ascend 910C 图像分类训练" /></label><label class="field full">想比较或评测什么？ *<textarea name="summary" required minlength="20" maxlength="1200" placeholder="说明任务、输入数据和想比较的结果，至少 20 字">${v('summary')}</textarea></label><label class="field full">GitHub 仓库主页 *<input name="repoUrl" type="url" required maxlength="500" placeholder="https://github.com/owner/repo" /></label><label class="field">硬件配置<input name="hardware" maxlength="300" value="${v('hardware')}" placeholder="例如：8× Ascend 910C" /></label><label class="field">主指标<input name="metric" maxlength="300" value="${v('metric')}" placeholder="例如：训练时间，越短越好" /></label><label class="field full">质量或正确性门槛<input name="quality" maxlength="300" value="${v('quality')}" placeholder="例如：准确率 ≥ 96%" /></label></div></div><div class="form-section"><h2>联系信息</h2><div class="field-grid"><label class="field full">联系邮箱 *<input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com" /></label></div><p class="muted-copy">邮箱仅供管理员联系，不会公开展示。当前不验证邮箱所有权；同一邮箱每 2 小时最多提交一次。</p><label class="community-honeypot" aria-hidden="true">网站<input name="website" tabindex="-1" autocomplete="off" /></label></div><div class="form-actions"><button class="button button-primary" type="submit">提交给管理员审核</button><span id="proposalStatus" role="status"></span></div></form><aside class="editor-aside"><div class="aside-card"><h3>提交后</h3><p>我们会给你一个查询链接，请自行保存。管理员通过后，提案会出现在对应目录。</p></div><div class="aside-card"><h3>成绩提交</h3><p>此表单用于提出新赛题或榜单。向现有榜单提交成绩，请进入该榜单的“提交”页面。</p></div></aside></div></div>`;
+  }
+
+  function receiptPage() {
+    return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">SUBMISSION STATUS</span><h1>提案状态</h1><div id="receiptStatusMount" role="status">正在读取提交状态…</div><p class="muted-copy">请保存当前链接；没有账号或邮件通知时，这是查询审核状态的凭据。</p><div class="account-actions"><button class="button button-primary" type="button" data-copy-receipt>复制查询链接</button><a class="button button-outline" href="#/">返回首页</a></div><span id="copyReceiptStatus" role="status"></span></div></div>`;
+  }
+
+  function communityDetailPage(id) {
+    const item = state.communityPublic.find(entry => entry.id === id);
+    if (!item) return `<div class="page container"><div class="empty-panel"><h1>找不到这条社区提案</h1><a href="#/leaderboards">返回目录</a></div></div>`;
+    return `<div class="page container detail-page"><div class="breadcrumbs"><a href="#/${item.kind === 'benchmark' ? 'benchmarks' : 'leaderboards'}">${proposalKind(item.kind)}s</a><span>›</span><span>社区提案</span></div><div class="detail-hero"><div><span class="category-label">${proposalCategory(item.category)} · 社区提案</span><h1>${esc(item.title)}</h1><p>${esc(item.summary)}</p></div></div><div class="detail-grid"><div class="content-card"><h2>提案信息</h2>${fact('类型', proposalKind(item.kind))}${fact('硬件', esc(item.hardware || '待补充'))}${fact('主指标', esc(item.metric || '待补充'))}${fact('质量门槛', esc(item.quality || '待补充'))}<p>此提案已由管理员审核展示，正式评测规则与自动评测尚未接入。</p></div><aside class="content-card quick-card"><h2>项目仓库</h2>${externalLink(item.repoUrl, '打开 GitHub 仓库')}</aside></div></div>`;
+  }
+
+  function adminSubmissionsPage() {
+    const items = [...state.communityAdmin].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1) || b.createdAt - a.createdAt);
+    return `<div class="page container"><div class="page-intro directory-intro"><div><span class="eyebrow">ADMIN REVIEW</span><h1>用户提案审核</h1><p>邮箱仅供联系；审核通过后公开展示提案内容，不公开邮箱。</p></div><a class="button button-outline" href="#/leaderboards">返回目录</a></div><div class="review-list">${items.length ? items.map(item => `<article class="content-card review-card"><div class="review-head"><span class="category-label">${proposalKind(item.kind)} · ${proposalCategory(item.category)}</span><span class="review-status ${esc(item.status)}">${({pending:'待审核',approved:'已通过',rejected:'已退回'})[item.status] || esc(item.status)}</span></div><h2>${esc(item.title)}</h2><p>${esc(item.summary)}</p><div class="review-meta"><span>邮箱：${esc(item.email)}</span><span>提交：${esc(new Date(item.createdAt * 1000).toLocaleString('zh-CN'))}</span></div><div class="review-meta"><span>硬件：${esc(item.hardware || '未填写')}</span><span>指标：${esc(item.metric || '未填写')}</span><span>质量：${esc(item.quality || '未填写')}</span></div>${externalLink(item.repoUrl, '查看 GitHub 仓库')}<label class="field full">审核备注<textarea data-review-note="${esc(item.id)}" maxlength="1000" placeholder="退回时可说明需要补充什么">${esc(item.reviewNote || '')}</textarea></label><div class="form-actions"><button class="button button-primary button-small" type="button" data-review-id="${esc(item.id)}" data-review-status="approved">通过并展示</button><button class="button button-outline button-small" type="button" data-review-id="${esc(item.id)}" data-review-status="rejected">退回</button><span id="reviewStatus-${esc(item.id)}" role="status"></span></div></article>`).join('') : '<div class="empty-panel"><h2>暂无用户提案</h2></div>'}</div></div>`;
+  }
+
   function benchmarksPage() {
     const categories = [['all', '全部'], ['training', '训练加速'], ['inference', '推理加速'], ['kernel', '算子加速']];
-    return `<div class="page container"><div class="page-intro directory-intro"><div><span class="eyebrow">BENCHMARKS</span><h1>Benchmarks</h1><p>按固定任务、数据和评测程序进行的 NPU 评测。当前暂无已发布任务。</p></div><a class="button button-primary" href="#/create">创建 Benchmark ↗</a></div>
+    return `<div class="page container"><div class="page-intro directory-intro"><div><span class="eyebrow">BENCHMARKS</span><h1>Benchmarks</h1><p>按固定任务、数据和评测程序进行的 NPU 评测。社区提案由管理员审核后展示。</p></div><a class="button button-primary" href="#/submit?kind=benchmark">提交 Benchmark 提案 ↗</a></div>
       <div class="catalog-toolbar"><div class="filter-group" role="group" aria-label="按加速方向筛选">${categories.map(([key, label]) => `<button class="filter-pill ${state.category === key ? 'active' : ''}" type="button" data-category="${key}">${label}</button>`).join('')}</div></div>
-      <div class="empty-panel benchmark-empty"><h2>${state.category === 'all' ? '暂无 Benchmark' : `${categories.find(([key]) => key === state.category)?.[1]}暂无 Benchmark`}</h2><p>新任务可先保存为本机草稿。</p></div>
+      ${communitySection('benchmark', state.category)}
+      <div class="empty-panel benchmark-empty"><h2>正式 Benchmark 正在筹备</h2><p>你可以直接提交新任务提案，也可以<a href="#/create">先写详细的本机草稿</a>。</p></div>
       ${benchmarkDraftsSection()}</div>`;
   }
 
   function leaderboardsPage() {
     const categories = [['all', '全部'], ['training', '训练加速'], ['inference', '推理加速'], ['kernel', '算子加速']];
     const visible = state.leaderboardCategory === 'all' || state.leaderboardCategory === 'training';
-    return `<div class="page container"><div class="page-intro directory-intro"><div><span class="eyebrow">RESULTS & RANKINGS</span><h1>Leaderboards</h1><p>已有项目的成绩、硬件配置与运行记录。</p></div>${isAdmin() ? '<a class="button button-primary" href="#/leaderboards/new">创建 Leaderboard ↗</a>' : ''}</div>
+    return `<div class="page container"><div class="page-intro directory-intro"><div><span class="eyebrow">RESULTS & RANKINGS</span><h1>Leaderboards</h1><p>已有项目的成绩、硬件配置与运行记录。</p></div><a class="button button-primary" href="#/submit?kind=leaderboard">提交 Leaderboard 提案 ↗</a></div>
       <div class="catalog-toolbar"><div class="filter-group" role="group" aria-label="按加速方向筛选榜单">${categories.map(([key, label]) => `<button class="filter-pill ${state.leaderboardCategory === key ? 'active' : ''}" type="button" data-leaderboard-category="${key}">${label}</button>`).join('')}</div><span class="catalog-count">${visible ? `${1 + extraList().length} 个 Leaderboard` : '暂无 Leaderboard'}</span></div>
       ${visible ? `${leaderboardFeature()}<div class="board-card-grid">${extraList().map(extraBoardCard).join('')}</div>` : '<div class="empty-panel"><h2>这个方向还没有榜单</h2></div>'}
-      ${isAdmin() ? leaderboardDraftsSection() : ''}${isAdmin() ? '<div class="catalog-bottom"><div><h2>创建或接入榜单</h2><p>管理员可建立新榜单草稿，或记录已有榜单的接入方案。</p></div><div><a class="button button-primary" href="#/leaderboards/new">创建 Leaderboard</a><a class="button button-outline" href="#/import">接入已有榜单</a></div></div>' : ''}</div>`;
+      ${communitySection('leaderboard', state.leaderboardCategory)}
+      ${isAdmin() ? leaderboardDraftsSection() : ''}${isAdmin() ? '<div class="catalog-bottom"><div><h2>创建或接入榜单</h2><p>管理员可建立新榜单草稿，或记录已有榜单的接入方案。</p></div><div><a class="button button-primary" href="#/admin/submissions">审核用户提案</a><a class="button button-outline" href="#/leaderboards/new">创建 Leaderboard</a><a class="button button-outline" href="#/import">接入已有榜单</a></div></div>' : ''}</div>`;
   }
 
   const detailTabs = [['overview', '概览'], ['data', '数据与模型'], ['evaluation', '评测规则'], ['submit', '提交'], ['leaderboard', '排行榜']];
@@ -180,20 +213,20 @@
   const leaderboardDrafts = () => state.leaderboardDrafts;
   function benchmarkDraftsSection() {
     const list = drafts(); if (!list.length) return '';
-    return `<section class="local-drafts"><div class="section-heading"><h2>本机 Benchmark 草稿</h2><span class="draft-badge">仅当前浏览器可见</span></div><div class="draft-grid">${list.map((item, index) => ({ ...item, index })).reverse().map(item => `<div class="local-draft-card"><span class="category-label">${esc(templates[item.template]?.label || '未分类')}</span><h3>${esc(item.title)}</h3><p>${esc(item.summary || item.hardware || '')}</p><div><span>${esc(item.hardware || '')}</span><button type="button" data-delete-draft="${item.index}">删除</button></div></div>`).join('')}</div></section>`;
+    return `<section class="local-drafts"><div class="section-heading"><h2>本机 Benchmark 草稿</h2><span class="draft-badge">仅当前浏览器可见</span></div><div class="draft-grid">${list.map((item, index) => ({ ...item, index })).reverse().map(item => `<div class="local-draft-card"><span class="category-label">${esc(templates[item.template]?.label || '未分类')}</span><h3>${esc(item.title)}</h3><p>${esc(item.summary || item.hardware || '')}</p><div><span>${esc(item.hardware || '')}</span><button type="button" data-submit-benchmark-draft="${item.index}">提交审核</button><button type="button" data-delete-draft="${item.index}">删除</button></div></div>`).join('')}</div></section>`;
   }
   function leaderboardDraftsSection() {
     const list = leaderboardDrafts(); if (!list.length) return '';
     return `<section class="local-drafts"><div class="section-heading"><h2>Leaderboard 草稿</h2><span class="draft-badge">未发布 · 仅管理员可见</span></div><div class="draft-grid">${list.map(item => `<a class="local-draft-card" href="#/leaderboards/draft/${encodeURIComponent(item.id)}"><span class="category-label">${esc(item.category)}</span><h3>${esc(item.title)}</h3><p>${esc(item.summary)}</p><div><span>${esc(item.hardware)}</span><span>查看草稿 →</span></div></a>`).join('')}</div></section>`;
   }
-  function draftItems() { const list = drafts(); return list.length ? list.map((item, index) => ({ ...item, index })).reverse().slice(0, 5).map(item => `<div class="draft-item"><div><strong>${esc(item.title)}</strong><span>${esc(templates[item.template]?.label || item.template)} · ${esc(item.hardware)}</span></div><button type="button" data-delete-draft="${item.index}">删除</button></div>`).join('') : '<p class="muted-copy">还没有保存的草稿。</p>'; }
+  function draftItems() { const list = drafts(); return list.length ? list.map((item, index) => ({ ...item, index })).reverse().slice(0, 5).map(item => `<div class="draft-item"><div><strong>${esc(item.title)}</strong><span>${esc(templates[item.template]?.label || item.template)} · ${esc(item.hardware)}</span></div><button type="button" data-submit-benchmark-draft="${item.index}">提交审核</button><button type="button" data-delete-draft="${item.index}">删除</button></div>`).join('') : '<p class="muted-copy">还没有保存的草稿。</p>'; }
   function importItems() { const list = imports(); return list.length ? list.map((item, index) => ({ ...item, index })).reverse().slice(0, 5).map(item => `<div class="draft-item"><div><strong>${esc(item.title)}</strong><span>${esc(item.format)} · ${esc(item.sourceUrl)}</span></div><button type="button" data-delete-import="${item.index}">删除</button></div>`).join('') : '<p class="muted-copy">还没有接入草稿。</p>'; }
   function updateDrafts() { const list = document.getElementById('draftItems'); if (list) list.innerHTML = draftItems(); const count = document.getElementById('draftCount'); if (count) count.textContent = drafts().length; }
   function updateImports() { const list = document.getElementById('importItems'); if (list) list.innerHTML = importItems(); const count = document.getElementById('importCount'); if (count) count.textContent = imports().length; }
 
   function createPage() {
     const template = templates[state.template];
-    return `<div class="page container"><div class="page-intro"><span class="eyebrow">HOST A BENCHMARK</span><h1>创建 Benchmark</h1><p>按模板写清任务、数据、模型、评测和提交方式。当前仅保存本机草稿，发布和自动评测尚未接入。</p></div>
+    return `<div class="page container"><div class="page-intro"><span class="eyebrow">HOST A BENCHMARK</span><h1>创建 Benchmark</h1><p>按模板写清任务、数据、模型、评测和提交方式。先保存本机草稿，再从草稿点击“提交审核”发送给管理员。</p></div>
       <div class="template-grid">${Object.entries(templates).map(([key, value]) => `<button class="template-choice ${state.template === key ? 'active' : ''}" type="button" data-template="${key}" aria-pressed="${state.template === key}"><span>${value.short}</span><strong>${value.label}</strong><small>${value.description}</small></button>`).join('')}</div>
       <div class="editor-layout"><form class="editor-form" id="createForm"><div class="form-section"><div class="form-section-head"><span>01</span><div><h2>任务说明</h2><p>让参与者先看懂要优化什么。</p></div></div><div class="field-grid"><label class="field full">Benchmark 名称 *<input name="title" required maxlength="100" placeholder="例如：语言模型训练评测 · 8× Ascend 910C" /></label><label class="field full">一句话目标 *<input name="summary" required placeholder="例如：达到目标验证损失所需的训练时间" /></label><label class="field full">任务描述<textarea name="description" placeholder="背景、参与方式和希望解决的问题"></textarea></label></div></div>
         <div class="form-section"><div class="form-section-head"><span>02</span><div><h2>数据、模型与硬件</h2><p>把可比较的条件定清楚。</p></div></div><div class="field-grid"><label class="field">硬件配置 *<input name="hardware" required placeholder="例如：8× Ascend 910C（16 die）" /></label><label class="field">数据集及版本 *<input name="dataset" required placeholder="数据名称、版本或固定划分" /></label><label class="field full">模型、输入与可改动范围 *<input name="model" required placeholder="说明模型基线及允许修改的内容" /></label><label class="field full">质量 / 正确性门槛 *<input name="goal" required placeholder="例如：验证损失 ≤ 3.28" /></label></div></div>
@@ -230,7 +263,7 @@
   }
 
   function accountPage() {
-    if (state.user) return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">MY ACCOUNT</span><h1>你好，${esc(state.user.displayName)}</h1><p>已登录 NPUArena。账号信息保存在服务端数据库中。</p><div class="account-identity"><span>邮箱</span><strong>${esc(state.user.email)}</strong></div><div class="account-identity"><span>权限</span><strong>${isAdmin() ? '管理员' : '普通用户'}</strong></div><div class="account-actions"><a class="button button-primary" href="#/leaderboards">浏览 Leaderboards</a><button class="button button-outline" type="button" data-logout>退出登录</button></div><div class="account-future"><strong>当前功能</strong><span>${isAdmin() ? '可在服务端创建和修改 Leaderboard 草稿。' : 'Leaderboard 创建和修改仅限管理员。'}Benchmark 与接入草稿仍只保存在当前浏览器。</span></div></div></div>`;
+    if (state.user) return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">MY ACCOUNT</span><h1>你好，${esc(state.user.displayName)}</h1><p>已登录 NPUArena。账号信息保存在服务端数据库中。</p><div class="account-identity"><span>邮箱</span><strong>${esc(state.user.email)}</strong></div><div class="account-identity"><span>权限</span><strong>${isAdmin() ? '管理员' : '普通用户'}</strong></div><div class="account-actions"><a class="button button-primary" href="#/admin/submissions">审核用户提案</a><a class="button button-outline" href="#/leaderboards">浏览 Leaderboards</a><button class="button button-outline" type="button" data-logout>退出登录</button></div><div class="account-future"><strong>当前功能</strong><span>可审核用户提案，并在服务端创建和修改 Leaderboard 草稿。</span></div></div></div>`;
     return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">ADMIN ACCOUNT</span><h1>管理员登录</h1><p>管理员登录后可创建和修改 Leaderboard。</p><form id="authForm" class="auth-form"><label>邮箱<input name="email" type="email" autocomplete="username" maxlength="254" required placeholder="admin@example.com" /></label><label>密码<input name="password" type="password" autocomplete="current-password" required placeholder="管理员密码" /></label><button class="button button-primary" type="submit">登录</button><span class="auth-status" id="authStatus" role="status">${esc(state.authError)}</span></form><div class="account-future"><strong>账号数据</strong><span>管理员账号在服务器创建；密码只以哈希形式存储。</span></div></div></div>`;
   }
 
@@ -249,19 +282,94 @@
     state.leaderboardDrafts = data.drafts;
   }
 
+  async function loadPublicSubmissions() {
+    try {
+      const response = await fetch('/api/submissions/public', { cache: 'no-store' });
+      if (!response.ok) throw new Error('读取社区提案失败');
+      state.communityPublic = (await response.json()).submissions || [];
+      if (['#/benchmarks', '#/leaderboards'].some(prefix => location.hash.startsWith(prefix)) || location.hash.startsWith('#/community/')) render();
+    } catch { state.communityPublic = []; }
+  }
+
+  async function loadAdminSubmissions() {
+    state.communityAdmin = [];
+    if (!isAdmin()) return;
+    const response = await fetch('/api/admin/submissions', { credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '读取审核队列失败。');
+    state.communityAdmin = data.submissions || [];
+  }
+
   async function loadSession() {
     try {
       const response = await fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' });
       if (!response.ok) throw new Error('账号服务不可用');
       state.user = (await response.json()).user || null;
       await loadLeaderboardDrafts();
+      await loadAdminSubmissions();
       state.authError = '';
     } catch (error) {
       state.authError = error.message || '账号服务不可用。';
     }
     state.authChecked = true;
     updateNavAccount();
-    if (location.hash.startsWith('#/account') || location.hash.startsWith('#/leaderboards') || location.hash.startsWith('#/import')) render();
+    if (location.hash.startsWith('#/account') || location.hash.startsWith('#/leaderboards') || location.hash.startsWith('#/import') || location.hash.startsWith('#/admin/')) render();
+  }
+
+  async function submitProposal(form) {
+    const status = form.querySelector('#proposalStatus');
+    const button = form.querySelector('button[type="submit"]');
+    const values = Object.fromEntries(new FormData(form));
+    button.disabled = true;
+    status.textContent = '正在提交…';
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '提交失败，请稍后再试。');
+      if (data.receipt) {
+        state.proposalPrefill = null;
+        location.hash = `#/submission/${encodeURIComponent(data.receipt)}`;
+      }
+      else status.textContent = data.message || '提交已收到。';
+    } catch (error) {
+      status.textContent = error.message || '提交失败，请稍后再试。';
+    } finally { button.disabled = false; }
+  }
+
+  async function loadReceipt(token) {
+    const mount = document.getElementById('receiptStatusMount');
+    if (!mount) return;
+    try {
+      const response = await fetch('/api/submissions/receipt', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ receipt: token })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '找不到这条提交。');
+      if (!mount.isConnected) return;
+      const item = data.submission;
+      const status = ({pending:'待审核',approved:'审核通过，已公开展示',rejected:'已退回'})[item.status] || item.status;
+      mount.innerHTML = `<div class="receipt-result"><span class="review-status ${esc(item.status)}">${esc(status)}</span><h2>${esc(item.title)}</h2><p>${proposalKind(item.kind)} · ${proposalCategory(item.category)}</p>${item.reviewNote ? `<p>管理员备注：${esc(item.reviewNote)}</p>` : ''}${item.status === 'approved' ? `<a class="button button-primary" href="#/community/${esc(item.id)}">查看公开提案 →</a>` : ''}</div>`;
+    } catch (error) { if (mount.isConnected) mount.textContent = error.message || '读取失败。'; }
+  }
+
+  async function reviewProposal(id, status) {
+    const output = document.getElementById(`reviewStatus-${id}`);
+    const note = document.querySelector(`[data-review-note="${id}"]`)?.value || '';
+    if (output) output.textContent = '正在保存…';
+    try {
+      const response = await fetch(`/api/admin/submissions/${encodeURIComponent(id)}/review`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, note })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '审核失败。');
+      await Promise.all([loadAdminSubmissions(), loadPublicSubmissions()]);
+      render();
+    } catch (error) { if (output) output.textContent = error.message || '审核失败。'; }
   }
 
   async function submitAuth(form) {
@@ -280,6 +388,7 @@
       if (!response.ok) throw new Error(data.error || '登录服务暂时不可用。');
       state.user = data.user;
       await loadLeaderboardDrafts();
+      await loadAdminSubmissions();
       state.authError = '';
       updateNavAccount();
       location.hash = '#/account';
@@ -299,6 +408,7 @@
       if (!response.ok) throw new Error('退出失败');
       state.user = null;
       state.leaderboardDrafts = [];
+      state.communityAdmin = [];
       updateNavAccount();
       if (location.hash === '#/account/login') render();
       else location.hash = '#/account/login';
@@ -317,7 +427,14 @@
     }
     const params = new URLSearchParams(query || '');
     stopAnimation(); closeDrawer();
-    if (path === '/benchmarks') {
+    if (path === '/submit') app.innerHTML = proposalPage(params.get('kind'));
+    else if (path.startsWith('/submission/')) {
+      app.innerHTML = receiptPage();
+      void loadReceipt(path.split('/')[2] || '');
+    }
+    else if (path === '/admin/submissions') app.innerHTML = isAdmin() ? adminSubmissionsPage() : adminGate();
+    else if (path.startsWith('/community/')) app.innerHTML = communityDetailPage(path.split('/')[2] || '');
+    else if (path === '/benchmarks') {
       const category = params.get('category');
       state.category = category && ['training', 'inference', 'kernel'].includes(category) ? category : 'all';
       app.innerHTML = benchmarksPage();
@@ -339,7 +456,7 @@
     const extraBoard = extraBoards[path.split('/')[1]];
     const active = path.startsWith('/leaderboards') || path.startsWith('/nanogpt') || extraBoard || path === '/import' ? 'leaderboards' : path === '/benchmarks' || path === '/create' ? 'benchmarks' : '';
     document.querySelectorAll('[data-nav]').forEach(link => link.classList.toggle('active', link.dataset.nav === active));
-    document.title = `${path === '/' ? '首页' : path === '/benchmarks' ? 'Benchmarks' : path === '/leaderboards' ? 'Leaderboards' : path === '/leaderboards/new' ? '创建 Leaderboard' : path.startsWith('/leaderboards/draft/') ? 'Leaderboard 草稿' : path.startsWith('/nanogpt') ? 'NanoGPT NPU' : extraBoard ? extraBoard.title : path === '/create' ? '创建 Benchmark' : path === '/import' ? '接入已有榜单' : '账号'} · NPUArena`;
+    document.title = `${path === '/' ? '首页' : path === '/submit' ? '提交提案' : path === '/admin/submissions' ? '审核提案' : path.startsWith('/submission/') ? '提案状态' : path.startsWith('/community/') ? '社区提案' : path === '/benchmarks' ? 'Benchmarks' : path === '/leaderboards' ? 'Leaderboards' : path === '/leaderboards/new' ? '创建 Leaderboard' : path.startsWith('/leaderboards/draft/') ? 'Leaderboard 草稿' : path.startsWith('/nanogpt') ? 'NanoGPT NPU' : extraBoard ? extraBoard.title : path === '/create' ? '创建 Benchmark' : path === '/import' ? '接入已有榜单' : '账号'} · NPUArena`;
     document.getElementById('siteNav').classList.remove('open');
     document.getElementById('menuButton').setAttribute('aria-expanded', 'false');
     window.scrollTo(0, 0);
@@ -571,6 +688,8 @@
 
   app.addEventListener('click', event => {
     if (event.target.closest('[data-logout]')) { void logout(); return; }
+    if (event.target.closest('[data-copy-receipt]')) { void navigator.clipboard.writeText(location.href).then(() => { document.getElementById('copyReceiptStatus').textContent = '链接已复制，请妥善保存。'; }).catch(() => { document.getElementById('copyReceiptStatus').textContent = '复制失败，请从地址栏手动复制。'; }); return; }
+    const review = event.target.closest('[data-review-id]'); if (review) { void reviewProposal(review.dataset.reviewId, review.dataset.reviewStatus); return; }
     const extraRecord = event.target.closest('[data-extra-record]'); if (extraRecord) { openExtraDrawer(extraRecord.dataset.extraBoard, extraRecord.dataset.extraRecord); return; }
     const record = event.target.closest('[data-record]'); if (record) { openDrawer(record.dataset.record); return; }
     const syncBoard = event.target.closest('[data-sync-extra]'); if (syncBoard) { syncExtra(syncBoard.dataset.syncExtra); return; }
@@ -578,6 +697,7 @@
     const category = event.target.closest('[data-category]'); if (category) { const selected = category.dataset.category; const next = selected === 'all' ? '#/benchmarks' : `#/benchmarks?category=${selected}`; if (location.hash === next) { state.category = selected; app.innerHTML = benchmarksPage(); } else location.hash = next; return; }
     const leaderboardCategory = event.target.closest('[data-leaderboard-category]'); if (leaderboardCategory) { const selected = leaderboardCategory.dataset.leaderboardCategory; const next = selected === 'all' ? '#/leaderboards' : `#/leaderboards?category=${selected}`; if (location.hash === next) { state.leaderboardCategory = selected; app.innerHTML = leaderboardsPage(); } else location.hash = next; return; }
     const template = event.target.closest('[data-template]'); if (template) { const current = document.getElementById('createForm'); const values = current ? Object.fromEntries(new FormData(current)) : {}; state.template = template.dataset.template; app.innerHTML = createPage(); for (const [name, value] of Object.entries(values)) { const field = document.getElementById('createForm').elements.namedItem(name); if (field) field.value = value; } return; }
+    const submitLocalDraft = event.target.closest('[data-submit-benchmark-draft]'); if (submitLocalDraft) { const item = drafts()[Number(submitLocalDraft.dataset.submitBenchmarkDraft)]; if (!item) return; state.proposalPrefill = { category: item.template, title: item.title, summary: [item.summary, item.description, item.dataset ? `数据集：${item.dataset}` : ''].filter(Boolean).join('\n').slice(0, 1200), hardware: item.hardware, metric: item.metric, quality: item.goal }; location.hash = '#/submit?kind=benchmark'; return; }
     const removeDraft = event.target.closest('[data-delete-draft]'); if (removeDraft) { const list = drafts(); list.splice(Number(removeDraft.dataset.deleteDraft), 1); localStorage.setItem('npu-bench-drafts', JSON.stringify(list)); if (location.hash.startsWith('#/benchmarks')) render(); else updateDrafts(); return; }
     const removeLeaderboardDraft = event.target.closest('[data-delete-leaderboard-draft]'); if (removeLeaderboardDraft) { void deleteLeaderboardDraft(removeLeaderboardDraft.dataset.deleteLeaderboardDraft).catch(error => { const status = document.getElementById('leaderboardDraftError'); if (status) status.textContent = error.message; }); return; }
     const removeImport = event.target.closest('[data-delete-import]'); if (removeImport) { const list = imports(); list.splice(Number(removeImport.dataset.deleteImport), 1); localStorage.setItem('npu-bench-imports', JSON.stringify(list)); updateImports(); return; }
@@ -590,6 +710,7 @@
   app.addEventListener('submit', event => {
     const formId = event.target.getAttribute('id');
     if (formId === 'authForm') { event.preventDefault(); void submitAuth(event.target); return; }
+    if (formId === 'proposalForm') { event.preventDefault(); void submitProposal(event.target); return; }
     if (formId === 'prLookupForm') { event.preventDefault(); lookupPr(new FormData(event.target).get('pr')); return; }
     if (formId === 'createForm') { event.preventDefault(); saveDraft({ ...Object.fromEntries(new FormData(event.target)), template: state.template }); document.getElementById('saveState').textContent = '草稿已保存在当前浏览器'; event.target.reset(); return; }
     if (formId === 'importForm') { event.preventDefault(); try { saveImport(Object.fromEntries(new FormData(event.target))); document.getElementById('importSaveState').textContent = '接入草稿已保存，尚未同步成绩'; event.target.reset(); } catch (error) { document.getElementById('importSaveState').textContent = error.message; } return; }
@@ -603,4 +724,5 @@
   window.addEventListener('hashchange', render);
   render();
   void loadSession();
+  void loadPublicSubmissions();
 })();
