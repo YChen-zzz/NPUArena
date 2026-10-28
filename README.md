@@ -4,25 +4,25 @@ NPU 性能挑战与排行榜平台，包含榜单前端和账号 API。顶部把
 
 首页使用线路板动画和完整 NPUArena 名称作为主视觉。NanoGPT 榜单页面分为概览、数据与模型、评测规则、提交、排行榜。正式提交仍走 GitHub PR。站内可查询公开 PR 的 GitHub 状态。
 
-创建 Benchmark 可保存本机任务草稿。创建和编辑 Leaderboard 草稿仅限管理员账号，数据保存在服务端数据库；草稿不自动公开发布。“接入已有榜单”是管理员可用的来源映射流程，接入草稿仍保存在浏览器 `localStorage`，不会自动导入成绩。注册、登录和退出由服务端处理；没有 NPU 自动评测后端。
+创建 Benchmark 可保存本机任务草稿。创建和编辑 Leaderboard 草稿仅限管理员账号，数据保存在服务端数据库；草稿不自动公开发布。“接入已有榜单”是管理员可用的来源映射流程，接入草稿仍保存在浏览器 `localStorage`，不会自动导入成绩。公开注册已关闭；管理员登录和退出由服务端处理。没有 NPU 自动评测后端。
 
 ## 本地运行
 
-在项目根目录运行 `python server.py --host 127.0.0.1 --port 4173`，然后打开 [http://127.0.0.1:4173/](http://127.0.0.1:4173/)。第一次启动会自动创建 `data/npuarena.sqlite3`；该文件已被 Git 忽略。使用原来的 `python -m http.server` 只能浏览静态页面，无法注册或登录。
+在项目根目录运行 `python server.py --host 127.0.0.1 --port 4173`，然后打开 [http://127.0.0.1:4173/](http://127.0.0.1:4173/)。第一次启动会自动创建 `data/npuarena.sqlite3`；该文件已被 Git 忽略。使用原来的 `python -m http.server` 只能浏览静态页面，无法登录。
 
-主要入口：`/#/benchmarks`、`/#/create`、`/#/leaderboards`、`/#/leaderboards/new`、`/#/import`、`/#/nanogpt`、`/#/airbench`、`/#/nanovlm`、`/#/account/register`。前端仍是无构建步骤的 HTML、CSS 与 JavaScript，修改后刷新浏览器即可查看。
+主要入口：`/#/benchmarks`、`/#/create`、`/#/leaderboards`、`/#/leaderboards/new`、`/#/import`、`/#/nanogpt`、`/#/airbench`、`/#/nanovlm`、`/#/account/login`。前端仍是无构建步骤的 HTML、CSS 与 JavaScript，修改后刷新浏览器即可查看。
 
 ## 账号与数据库
 
-`server.py` 提供同源的注册申请、邮箱确认、登录、退出和 `/api/auth/me` 接口。注册申请要求 Cloudflare Turnstile 人机验证；服务端验证令牌、域名与 `register` 操作。注册申请不会立即创建账号；确认邮件中的一次性链接在 15 分钟内有效，用户在网站上点击确认后才建号并登录。已注册和未注册邮箱的申请都返回相同的 `202` 文案，避免通过状态码枚举账号。注册频次在数据库中按来源 IP、邮箱、邮箱域及全站配额限制；登录和确认接口另有限次尝试限制。`database.py` 在 SQLite 或 PostgreSQL 中保存用户、密码哈希、角色、会话和 Leaderboard 草稿。密码经随机盐和 scrypt 计算后入库，明文不会写入数据库或浏览器存储。浏览器收到的是 7 天有效、`HttpOnly`、`SameSite=Lax` 的会话 Cookie；数据库只保存会话令牌的 SHA-256 摘要。
+`server.py` 提供同源的管理员登录、退出和 `/api/auth/me` 接口。公开注册和邮箱确认默认关闭，直接调用对应 API 会返回 `404`。只有管理员账号可以登录；普通账号无法通过登录接口建立新会话。`database.py` 在 SQLite 或 PostgreSQL 中保存用户、密码哈希、角色、会话和 Leaderboard 草稿。密码经随机盐和 scrypt 计算后入库，明文不会写入数据库或浏览器存储。浏览器收到的是 7 天有效、`HttpOnly`、`SameSite=Lax` 的会话 Cookie；数据库只保存会话令牌的 SHA-256 摘要。
 
-新注册账号默认为普通用户。站点管理员在服务器上运行 `python manage_admin.py grant 已注册邮箱` 授予管理员权限；撤销时运行 `python manage_admin.py revoke 已注册邮箱`。该命令使用与 `server.py` 相同的 `DATABASE_URL` 或 `NPUARENA_DB_PATH`。角色从数据库读取，已有会话在下次请求时即反映变更。不要把首次注册者自动设为管理员。Leaderboard 草稿的读取、创建、修改和删除由服务端接口逐次校验管理员角色及同源请求，页面上的按钮隐藏仅用于界面引导。
+首次使用时，在服务器终端运行 `python manage_admin.py create 管理员邮箱 --name 管理员昵称`。命令会交互式要求输入并确认密码，不会把密码放进命令行参数。已有账号可用 `python manage_admin.py grant 已有邮箱` 授予管理员权限；撤销时运行 `python manage_admin.py revoke 已有邮箱`。这些命令使用与 `server.py` 相同的 `DATABASE_URL` 或 `NPUARENA_DB_PATH`。角色从数据库读取，已有会话在下次请求时即反映变更。Leaderboard 草稿的读取、创建、修改和删除由服务端接口逐次校验管理员角色及同源请求，页面上的按钮隐藏仅用于界面引导。
 
-本地默认使用 SQLite，不需额外安装依赖。部署时可配置 `DATABASE_URL` 使用 PostgreSQL，并先执行 `pip install -r requirements.txt`。示例见 [`.env.example`](.env.example)；实际凭据应放在部署环境中，不要提交到仓库。上线前必须配置 HTTPS、`PUBLIC_ORIGIN=https://你的域名`、`COOKIE_SECURE=true`、SMTP 邮件参数，以及 Cloudflare Turnstile 的 `TURNSTILE_SITE_KEY` 和 `TURNSTILE_SECRET_KEY`；人机验证域名须与 `PUBLIC_ORIGIN` 一致。账号接口在非本机 HTTP 下拒绝请求，未配置公开站点地址、邮件或人机验证时注册会安全地失败。邮件服务使用 TLS 连接。若使用反向代理，可在 `TRUSTED_PROXY_IPS` 中列出代理的真实来源 IP，应用只接受这些代理传入的 `X-Forwarded-For`。数据库服务不要直接开放到公网。服务器上的环境变量不会由 `.env.example` 自动加载。
+本地默认使用 SQLite，不需额外安装依赖。部署时可配置 `DATABASE_URL` 使用 PostgreSQL，并先执行 `pip install -r requirements.txt`。示例见 [`.env.example`](.env.example)；实际凭据应放在部署环境中，不要提交到仓库。管理员登录**无需 SMTP 或 Turnstile**。上线后登录仍须使用 HTTPS，并配置 `PUBLIC_ORIGIN=https://你的域名` 和 `COOKIE_SECURE=true`；账号接口在非本机 HTTP 下拒绝请求。若使用反向代理，可在 `TRUSTED_PROXY_IPS` 中列出代理的真实来源 IP，应用只接受这些代理传入的 `X-Forwarded-For`。数据库服务不要直接开放到公网。服务器上的环境变量不会由 `.env.example` 自动加载。
 
 账号及 Leaderboard 草稿数据保存在运行 `server.py` 的那台机器或所配置的 PostgreSQL 中。GitHub 仓库存放代码，不存放数据库；换服务器时需要迁移数据库。Benchmark 和接入草稿仍是浏览器本地数据，不会自动按账号同步。旧版本在浏览器 `localStorage` 中的 Leaderboard 草稿不会自动迁移到服务端。
 
-渗透测试报告（2026-10-27）列出两项中危注册问题，未列出高危。人机验证、邮箱确认和多维限流用于防止未经验证的批量建号；统一的注册申请响应用于减少邮箱枚举。上线后仍应在实际邮件服务和 HTTPS 域名下复测，并配置边缘层的请求限流与异常告警。报告中的通用 WAF、巡检和审计建议需要在部署环境单独落实。
+渗透测试报告（2026-10-27）列出两项中危注册问题，未列出高危。目前公开注册默认关闭，因此外部无法通过注册接口批量建号或枚举邮箱。后端保留此前的邮箱确认、人机验证及多维限流实现，只有将 `PUBLIC_REGISTRATION_ENABLED=true` 并配置 SMTP、Turnstile 后才可能重新启用；若将来恢复公开注册，需重新开放前端入口并复测。上线后仍应在 HTTPS 域名下复测管理员登录，并配置边缘层的请求限流与异常告警。报告中的通用 WAF、巡检和审计建议需要在部署环境单独落实。
 
 ## 数据
 

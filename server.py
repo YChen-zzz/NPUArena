@@ -200,7 +200,7 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
             if path == "/api/auth/config":
                 self.json_response(HTTPStatus.OK, {
                     "turnstileSiteKey": os.environ.get("TURNSTILE_SITE_KEY", "").strip(),
-                    "registrationAvailable": bool(os.environ.get("PUBLIC_ORIGIN", "").strip()) and self.secure_auth_origin() and smtp_configured() and turnstile_configured(),
+                    "registrationAvailable": os.environ.get("PUBLIC_REGISTRATION_ENABLED", "").lower() == "true" and bool(os.environ.get("PUBLIC_ORIGIN", "").strip()) and self.secure_auth_origin() and smtp_configured() and turnstile_configured(),
                 })
                 return
             if (path == "/api/auth/me" or path.startswith(DRAFTS_PATH)) and not self.secure_auth_origin():
@@ -229,6 +229,9 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
 
         def do_POST(self):
             path = urlsplit(self.path).path
+            if path in {"/api/auth/register", "/api/auth/verify"} and os.environ.get("PUBLIC_REGISTRATION_ENABLED", "").lower() != "true":
+                self.json_response(HTTPStatus.NOT_FOUND, {"error": "公开注册已关闭。"})
+                return
             if path not in AUTH_PATHS and path != DRAFTS_PATH:
                 self.json_response(HTTPStatus.NOT_FOUND, {"error": "接口不存在。"})
                 return
@@ -326,7 +329,7 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
                 return
 
             user = database.user_by_email(email)
-            if not user or not verify_password(password, user["password_hash"]):
+            if not user or not verify_password(password, user["password_hash"]) or user["role"] != "admin":
                 self.json_response(HTTPStatus.UNAUTHORIZED, {"error": "邮箱或密码不正确。"})
                 return
             self.new_session({"id": user["id"], "displayName": user["display_name"], "email": user["email"], "role": user["role"]})

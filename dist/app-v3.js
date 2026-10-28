@@ -13,8 +13,6 @@
     user: null, authChecked: false, authError: '', leaderboardDrafts: [], leaderboardDraftsError: ''
   };
   let stopAnimation = () => {};
-  let turnstileScriptPromise;
-  let turnstileWidgetId = null;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const fmt = value => Number(value).toFixed(2);
@@ -231,61 +229,15 @@
     return `<div class="page container detail-page"><div class="breadcrumbs"><a href="#/leaderboards">Leaderboards</a><span>›</span><span>管理员草稿</span></div><div class="detail-hero"><div><span class="category-label">${esc(category)} · 管理员草稿</span><h1>${esc(draft.title)}</h1><p>${esc(draft.summary)}</p><div class="detail-meta"><span>${esc(draft.hardware)}</span><span>${esc(draft.workload)}</span><span>规则 ${esc(draft.rulesVersion)}</span></div></div><a class="button button-primary" href="#/leaderboards/new?edit=${encodeURIComponent(draft.id)}">编辑草稿</a></div><div class="notice">此榜单尚未公开发布，仅管理员可查看和修改。</div><div class="detail-grid draft-detail"><div class="content-card"><h2>比较口径</h2>${fact('模型 / 算子', esc(draft.model))}${fact('质量 / 正确性门槛', esc(draft.target))}${fact('排名指标', `${esc(draft.metric)} · ${draft.direction === 'desc' ? '越大越好' : '越小越好'}`)}<h2>提交与核对</h2>${fact('提交方式', esc(submission))}<p><strong>成绩证据：</strong>${esc(draft.evidence)}</p><p><strong>审核方式：</strong>${esc(draft.verification)}</p>${draft.baselineName ? `<h2>首条成绩</h2>${fact(esc(draft.baselineName), esc(draft.baselineScore))}${externalLink(draft.baselineEvidence, '首条成绩证据')}` : '<p class="muted-copy">尚未添加成绩。</p>'}</div><aside class="content-card quick-card">${draft.projectUrl || draft.submissionUrl ? `<h2>相关链接</h2>${externalLink(draft.projectUrl, '项目地址')}${externalLink(draft.submissionUrl, '提交入口')}` : ''}<h2>草稿操作</h2><a class="resource-link" href="#/leaderboards/new?edit=${encodeURIComponent(draft.id)}">编辑规则 <span>→</span></a><button class="resource-link delete-link" type="button" data-delete-leaderboard-draft="${esc(draft.id)}">删除草稿 <span>×</span></button><p id="leaderboardDraftError" role="status"></p><a class="resource-link" href="#/leaderboards">返回 Leaderboards <span>→</span></a><p>公开发布和成绩提交服务尚未接入。</p></aside></div></div>`;
   }
 
-  function accountPage(mode) {
-    const register = mode === 'register';
-    if (mode === 'verify') {
-      const token = new URLSearchParams(location.hash.split('?')[1] || '').get('token') || '';
-      return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">VERIFY EMAIL</span><h1>确认注册邮箱</h1><p>点击下方按钮完成邮箱验证并创建账号。</p><form id="verifyForm" class="auth-form"><input type="hidden" name="token" value="${esc(token)}" /><button class="button button-primary" type="submit" ${token ? '' : 'disabled'}>确认邮箱并创建账号</button><span class="auth-status" id="verifyStatus" role="status">${token ? '' : '确认链接缺少令牌。'}</span></form></div></div>`;
-    }
+  function accountPage() {
     if (state.user) return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">MY ACCOUNT</span><h1>你好，${esc(state.user.displayName)}</h1><p>已登录 NPUArena。账号信息保存在服务端数据库中。</p><div class="account-identity"><span>邮箱</span><strong>${esc(state.user.email)}</strong></div><div class="account-identity"><span>权限</span><strong>${isAdmin() ? '管理员' : '普通用户'}</strong></div><div class="account-actions"><a class="button button-primary" href="#/leaderboards">浏览 Leaderboards</a><button class="button button-outline" type="button" data-logout>退出登录</button></div><div class="account-future"><strong>当前功能</strong><span>${isAdmin() ? '可在服务端创建和修改 Leaderboard 草稿。' : 'Leaderboard 创建和修改仅限管理员。'}Benchmark 与接入草稿仍只保存在当前浏览器。</span></div></div></div>`;
-    return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">NPUARENA ACCOUNT</span><h1>${register ? '注册 NPUArena' : '登录 NPUArena'}</h1><p>${register ? '提交后请打开邮箱中的确认链接；验证成功才会创建账号。' : '登录后可查看账号状态。当前成绩提交仍通过 GitHub PR 完成。'}</p><form id="authForm" class="auth-form" data-auth-mode="${register ? 'register' : 'login'}">${register ? '<label>昵称<input name="displayName" autocomplete="name" minlength="2" maxlength="40" required placeholder="你的昵称" /></label>' : ''}<label>邮箱<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com" /></label><label>密码<input name="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" minlength="8" maxlength="128" required placeholder="至少 8 个字符" /></label>${register ? '<label>确认密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required placeholder="再次输入密码" /></label><input type="hidden" name="turnstileToken" /><div id="turnstileWidget" aria-label="人机验证"></div>' : ''}<button class="button button-primary" type="submit">${register ? '发送确认邮件' : '登录'}</button><span class="auth-status" id="authStatus" role="status">${esc(state.authError)}</span></form><p class="auth-switch">${register ? '已有账号？<a href="#/account/login">登录</a>' : '还没有账号？<a href="#/account/register">注册</a>'}</p><div class="account-future"><strong>账号数据</strong><span>验证邮箱后创建账号；密码只以哈希形式存储在服务端。</span></div></div></div>`;
-  }
-
-  async function setupRegistrationChallenge() {
-    const form = document.querySelector('#authForm[data-auth-mode="register"]');
-    if (!form) return;
-    const button = form.querySelector('button[type="submit"]');
-    const status = form.querySelector('#authStatus');
-    button.disabled = true;
-    try {
-      const response = await fetch('/api/auth/config', { cache: 'no-store' });
-      if (!response.ok) throw new Error('注册服务暂时不可用。');
-      const config = await response.json();
-      if (!form.isConnected) return;
-      if (!config.registrationAvailable || !config.turnstileSiteKey) {
-        status.textContent = '注册暂未开放；请联系管理员配置邮件与人机验证服务。';
-        return;
-      }
-      if (!turnstileScriptPromise) turnstileScriptPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error('人机验证加载失败，请刷新页面重试。'));
-        document.head.append(script);
-      });
-      await turnstileScriptPromise;
-      if (!form.isConnected) return;
-      const tokenInput = form.elements.turnstileToken;
-      turnstileWidgetId = window.turnstile.render(form.querySelector('#turnstileWidget'), {
-        sitekey: config.turnstileSiteKey,
-        action: 'register',
-        theme: 'light',
-        callback: token => { tokenInput.value = token; status.textContent = ''; },
-        'expired-callback': () => { tokenInput.value = ''; },
-        'error-callback': () => { tokenInput.value = ''; status.textContent = '人机验证失败，请重试。'; }
-      });
-      button.disabled = false;
-    } catch (error) {
-      if (form.isConnected) status.textContent = error.message || '注册服务暂时不可用。';
-      turnstileScriptPromise = undefined;
-    }
+    return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">ADMIN ACCOUNT</span><h1>管理员登录</h1><p>管理员登录后可创建和修改 Leaderboard。</p><form id="authForm" class="auth-form"><label>邮箱<input name="email" type="email" autocomplete="username" maxlength="254" required placeholder="admin@example.com" /></label><label>密码<input name="password" type="password" autocomplete="current-password" required placeholder="管理员密码" /></label><button class="button button-primary" type="submit">登录</button><span class="auth-status" id="authStatus" role="status">${esc(state.authError)}</span></form><div class="account-future"><strong>账号数据</strong><span>管理员账号在服务器创建；密码只以哈希形式存储。</span></div></div></div>`;
   }
 
   function updateNavAccount() {
     const nav = document.getElementById('navActions');
     if (state.user) nav.innerHTML = `<a class="nav-user" href="#/account" title="${esc(state.user.email)}">${esc(state.user.displayName)}</a><button class="nav-logout" type="button" data-logout>退出</button>`;
-    else nav.innerHTML = '<a href="#/account/login">登录</a><a class="button button-primary button-small" href="#/account/register">注册</a>';
+    else nav.innerHTML = '<a class="button button-primary button-small" href="#/account/login">管理员登录</a>';
   }
 
   async function loadLeaderboardDrafts() {
@@ -315,66 +267,24 @@
   async function submitAuth(form) {
     const status = form.querySelector('#authStatus');
     const button = form.querySelector('button[type="submit"]');
-    const mode = form.dataset.authMode;
     const values = Object.fromEntries(new FormData(form));
-    if (mode === 'register' && values.password !== values.confirmPassword) {
-      status.textContent = '两次输入的密码不一致。';
-      return;
-    }
-    if (mode === 'register' && !values.turnstileToken) {
-      status.textContent = '请完成人机验证。';
-      return;
-    }
     button.disabled = true;
-    status.textContent = '正在处理…';
+    status.textContent = '正在登录…';
     try {
-      const response = await fetch(`/api/auth/${mode}`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: values.displayName, email: values.email, password: values.password, turnstileToken: values.turnstileToken })
+        body: JSON.stringify({ email: values.email, password: values.password })
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || '账号服务暂时不可用。');
-      if (mode === 'register') {
-        form.reset();
-        status.textContent = data.message || '如果该邮箱可以注册，我们已发送确认邮件。';
-        return;
-      }
+      if (!response.ok) throw new Error(data.error || '登录服务暂时不可用。');
       state.user = data.user;
       await loadLeaderboardDrafts();
       state.authError = '';
       updateNavAccount();
       location.hash = '#/account';
     } catch (error) {
-      status.textContent = error.message || '账号服务暂时不可用。';
-    } finally {
-      if (mode === 'register') {
-        form.elements.turnstileToken.value = '';
-        if (turnstileWidgetId !== null && window.turnstile) window.turnstile.reset(turnstileWidgetId);
-      }
-      button.disabled = false;
-    }
-  }
-
-  async function verifyRegistration(form) {
-    const status = form.querySelector('#verifyStatus');
-    const button = form.querySelector('button[type="submit"]');
-    button.disabled = true;
-    status.textContent = '正在确认…';
-    try {
-      const response = await fetch('/api/auth/verify', {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: new FormData(form).get('token') })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || '确认失败。');
-      state.user = data.user;
-      await loadLeaderboardDrafts();
-      updateNavAccount();
-      location.hash = '#/account';
-    } catch (error) {
-      status.textContent = error.message || '确认失败。';
+      status.textContent = error.message || '登录服务暂时不可用。';
     } finally {
       button.disabled = false;
     }
@@ -401,12 +311,12 @@
   function render() {
     const raw = location.hash.slice(1) || '/';
     const [path, query] = raw.split('?');
+    if (path === '/account/register' || path === '/account/verify') {
+      location.hash = '#/account/login';
+      return;
+    }
     const params = new URLSearchParams(query || '');
     stopAnimation(); closeDrawer();
-    if (turnstileWidgetId !== null && window.turnstile) {
-      window.turnstile.remove(turnstileWidgetId);
-      turnstileWidgetId = null;
-    }
     if (path === '/benchmarks') {
       const category = params.get('category');
       state.category = category && ['training', 'inference', 'kernel'].includes(category) ? category : 'all';
@@ -423,8 +333,7 @@
     else if (path === '/create') app.innerHTML = createPage();
     else if (path === '/import') app.innerHTML = isAdmin() ? importPage() : adminGate();
     else if (path.startsWith('/account')) {
-      app.innerHTML = accountPage(path.split('/')[2]);
-      if (path === '/account/register') void setupRegistrationChallenge();
+      app.innerHTML = accountPage();
     }
     else { app.innerHTML = homePage(); animateCircuit(); }
     const extraBoard = extraBoards[path.split('/')[1]];
@@ -681,7 +590,6 @@
   app.addEventListener('submit', event => {
     const formId = event.target.getAttribute('id');
     if (formId === 'authForm') { event.preventDefault(); void submitAuth(event.target); return; }
-    if (formId === 'verifyForm') { event.preventDefault(); void verifyRegistration(event.target); return; }
     if (formId === 'prLookupForm') { event.preventDefault(); lookupPr(new FormData(event.target).get('pr')); return; }
     if (formId === 'createForm') { event.preventDefault(); saveDraft({ ...Object.fromEntries(new FormData(event.target)), template: state.template }); document.getElementById('saveState').textContent = '草稿已保存在当前浏览器'; event.target.reset(); return; }
     if (formId === 'importForm') { event.preventDefault(); try { saveImport(Object.fromEntries(new FormData(event.target))); document.getElementById('importSaveState').textContent = '接入草稿已保存，尚未同步成绩'; event.target.reset(); } catch (error) { document.getElementById('importSaveState').textContent = error.message; } return; }

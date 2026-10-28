@@ -21,9 +21,11 @@ class AccountApiTest(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.previous_path = os.environ.get("NPUARENA_DB_PATH")
         self.previous_origin = os.environ.get("PUBLIC_ORIGIN")
+        self.previous_public_registration = os.environ.get("PUBLIC_REGISTRATION_ENABLED")
         self.previous_trusted_proxies = os.environ.get("TRUSTED_PROXY_IPS")
         os.environ.pop("TRUSTED_PROXY_IPS", None)
         os.environ["NPUARENA_DB_PATH"] = str(Path(self.temporary.name) / "accounts.sqlite3")
+        os.environ["PUBLIC_REGISTRATION_ENABLED"] = "true"
         attempts.clear()
         self.sent_emails = []
         self.cookies = http.cookiejar.CookieJar()
@@ -40,6 +42,10 @@ class AccountApiTest(unittest.TestCase):
             os.environ.pop("PUBLIC_ORIGIN", None)
         else:
             os.environ["PUBLIC_ORIGIN"] = self.previous_origin
+        if self.previous_public_registration is None:
+            os.environ.pop("PUBLIC_REGISTRATION_ENABLED", None)
+        else:
+            os.environ["PUBLIC_REGISTRATION_ENABLED"] = self.previous_public_registration
         if self.previous_trusted_proxies is None:
             os.environ.pop("TRUSTED_PROXY_IPS", None)
         else:
@@ -109,7 +115,21 @@ class AccountApiTest(unittest.TestCase):
         self.assertEqual(self.request("/api/auth/me")[1]["user"]["email"], "test@example.com")
         self.assertEqual(self.request("/api/auth/logout", {})[0], 200)
         self.assertIsNone(self.request("/api/auth/me")[1]["user"])
+        self.assertEqual(self.request("/api/auth/login", {"email": account["email"], "password": account["password"]})[0], 401)
+        self.database.set_user_role(account["email"], "admin")
         self.assertEqual(self.request("/api/auth/login", {"email": account["email"], "password": account["password"]})[0], 200)
+
+    def test_public_registration_disabled_by_default_and_cli_admin_can_log_in(self):
+        os.environ.pop("PUBLIC_REGISTRATION_ENABLED", None)
+        account = {"displayName": "Tester", "email": "test@example.com", "password": "strong-password-123"}
+        self.assertEqual(self.request("/api/auth/register", account)[0], 404)
+        self.assertEqual(self.request("/api/auth/verify", {"token": "anything"})[0], 404)
+        self.assertFalse(self.request("/api/auth/config")[1]["registrationAvailable"])
+        self.assertEqual(self.sent_emails, [])
+        self.assertIsNone(self.database.user_by_email(account["email"]))
+        self.database.create_admin("Admin", "admin@example.com", "long-admin-password-123")
+        self.assertEqual(self.request("/api/auth/login", {"email": "admin@example.com", "password": "long-admin-password-123"})[0], 200)
+        self.assertEqual(self.request("/api/auth/me")[1]["user"]["role"], "admin")
 
     def test_duplicate_login_failure_and_cross_origin_request(self):
         account = {"displayName": "Tester", "email": "test@example.com", "password": "strong-password-123"}

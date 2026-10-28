@@ -155,6 +155,21 @@ class Database:
             raise
         return user
 
+    def create_admin(self, display_name: str, email: str, password: str) -> dict:
+        user = {"id": str(uuid.uuid4()), "displayName": display_name, "email": email.strip().lower(), "role": "admin"}
+        password_hash = hash_password(password)
+        try:
+            with self.connection() as connection:
+                connection.execute(
+                    f"INSERT INTO users (id, display_name, email, password_hash, created_at, role) VALUES ({','.join([self.placeholder] * 6)})",
+                    (user["id"], display_name, user["email"], password_hash, int(time.time()), "admin"),
+                )
+        except Exception as error:
+            if isinstance(error, sqlite3.IntegrityError) or getattr(error, "sqlstate", None) == "23505":
+                raise DuplicateEmail from error
+            raise
+        return user
+
     def user_by_email(self, email: str):
         with self.connection() as connection:
             row = connection.execute(
