@@ -18,7 +18,7 @@ NPU 性能挑战与排行榜平台，包含榜单前端和账号 API。顶部把
 
 管理员登录尝试的来源 IP 限制（每 15 分钟 12 次）和全站限制（每 15 分钟 120 次）保存在数据库中，重启服务不会清零；同一邮箱的失败次数也跨 IP 累计（每 15 分钟 12 次）。正确密码登录后清除该邮箱和来源 IP 的历史计数，全站计数仍保留。未注册邮箱也执行同样的 scrypt 校验，避免通过登录响应时间判断邮箱是否存在。邮箱失败阈值达到后，错误密码会返回通用的频繁提示，正确密码仍可登录；若来源 IP 或全站登录次数已达上限，请等待限流窗口结束。如遇大规模分布式攻击，还需部署层限流。
 
-首次使用时，在服务器终端运行 `python manage_admin.py create 管理员邮箱 --name 管理员昵称`。命令会交互式要求输入并确认密码，不会把密码放进命令行参数。已有账号可用 `python manage_admin.py grant 已有邮箱` 授予管理员权限；撤销时运行 `python manage_admin.py revoke 已有邮箱`。这些命令使用与 `server.py` 相同的 `DATABASE_URL` 或 `NPUARENA_DB_PATH`。角色从数据库读取，已有会话在下次请求时即反映变更。Leaderboard 草稿的读取、创建、修改和删除由服务端接口逐次校验管理员角色及同源请求，页面上的按钮隐藏仅用于界面引导。
+首次使用时，在服务器终端运行 `python manage_admin.py create 管理员邮箱 --name 管理员昵称`。命令会交互式要求输入并确认密码，不会把密码放进命令行参数。修改管理员密码可运行 `python manage_admin.py password 管理员邮箱`；修改成功时会撤销该账号的全部旧会话。已有账号可用 `python manage_admin.py grant 已有邮箱` 授予管理员权限；撤销时运行 `python manage_admin.py revoke 已有邮箱`。这些命令使用与 `server.py` 相同的 `DATABASE_URL` 或 `NPUARENA_DB_PATH`。角色从数据库读取，已有会话在下次请求时即反映变更。Leaderboard 草稿的读取、创建、修改和删除由服务端接口逐次校验管理员角色及同源请求，页面上的按钮隐藏仅用于界面引导。
 
 本地默认使用 SQLite，不需额外安装依赖。部署时可配置 `DATABASE_URL` 使用 PostgreSQL，并先执行 `pip install -r requirements.txt`。示例见 [`.env.example`](.env.example)；实际凭据应放在部署环境中，不要提交到仓库。管理员登录**无需 SMTP 或 Turnstile**。上线后登录仍须使用 HTTPS，并配置 `PUBLIC_ORIGIN=https://你的域名` 和 `COOKIE_SECURE=true`；账号接口在非本机 HTTP 下拒绝请求。若使用反向代理，可在 `TRUSTED_PROXY_IPS` 中列出代理的真实来源 IP，应用只接受这些代理传入的 `X-Forwarded-For`。数据库服务不要直接开放到公网。服务器上的环境变量不会由 `.env.example` 自动加载。
 

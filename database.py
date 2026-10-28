@@ -183,6 +183,27 @@ class Database:
             raise
         return user
 
+    def reset_admin_password(self, email: str, password: str) -> bool:
+        """Replace an administrator password and revoke all existing sessions."""
+        password_hash = hash_password(password)
+        with self.connection() as connection:
+            row = connection.execute(
+                f"SELECT id FROM users WHERE email = {self.placeholder} AND role = 'admin'",
+                (email.strip().lower(),),
+            ).fetchone()
+            if not row:
+                return False
+            user_id = row["id"]
+            connection.execute(
+                f"UPDATE users SET password_hash = {self.placeholder} WHERE id = {self.placeholder}",
+                (password_hash, user_id),
+            )
+            connection.execute(
+                f"DELETE FROM sessions WHERE user_id = {self.placeholder}",
+                (user_id,),
+            )
+        return True
+
     def user_by_email(self, email: str):
         with self.connection() as connection:
             row = connection.execute(

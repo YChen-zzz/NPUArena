@@ -132,6 +132,21 @@ class AccountApiTest(unittest.TestCase):
         self.assertEqual(self.request("/api/auth/login", {"email": "admin@example.com", "password": "long-admin-password-123"})[0], 200)
         self.assertEqual(self.request("/api/auth/me")[1]["user"]["role"], "admin")
 
+    def test_admin_password_rotation_revokes_sessions(self):
+        self.database.create_admin("Admin", "admin@example.com", "previous-password-123")
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "admin@example.com", "password": "previous-password-123"
+        })[0], 200)
+        self.assertEqual(self.request("/api/auth/me")[1]["user"]["role"], "admin")
+        self.assertTrue(self.database.reset_admin_password("admin@example.com", "replacement-password-456"))
+        self.assertIsNone(self.request("/api/auth/me")[1]["user"])
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "admin@example.com", "password": "previous-password-123"
+        })[0], 401)
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "admin@example.com", "password": "replacement-password-456"
+        })[0], 200)
+
     def test_login_unknown_email_uses_password_hash_and_generic_error(self):
         self.database.create_admin("Admin", "admin@example.com", "long-admin-password-123")
         with patch("server.verify_password", wraps=verify_password) as checked:
