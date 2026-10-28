@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import tempfile
 import threading
 import unittest
@@ -85,16 +86,16 @@ class CommunitySubmissionTest(unittest.TestCase):
         self.assertEqual(self.request(review_path, {"status": "rejected", "note": "Need more data"})[0], 200)
         self.assertEqual(self.request("/api/submissions/public")[1]["submissions"], [])
 
-    def test_email_two_hour_limit_and_invalid_content(self):
+    def test_unverified_email_does_not_block_other_submissions(self):
         self.assertEqual(self.request("/api/submissions", self.proposal(repoUrl="javascript:alert(1)"))[0], 400)
         self.assertEqual(self.request("/api/submissions", self.proposal())[0], 202)
-        self.assertEqual(self.request("/api/submissions", self.proposal())[0], 429)
-        self.assertEqual(self.request("/api/submissions", self.proposal(email="PERSON@EXAMPLE.COM"))[0], 429)
+        self.assertEqual(self.request("/api/submissions", self.proposal())[0], 202)
+        self.assertEqual(self.request("/api/submissions", self.proposal(email="PERSON@EXAMPLE.COM"))[0], 202)
         self.assertEqual(self.request("/api/submissions", self.proposal(email="second@example.com"), origin="https://evil.example")[0], 403)
-        self.assertEqual(len(self.database.list_community_submissions()), 1)
+        self.assertEqual(len(self.database.list_community_submissions()), 3)
         self.assertNotIn("person@example.com", json.dumps(self.request("/api/submissions/receipt", {"receipt": "invalid"})[1]))
 
-    def test_ip_and_global_quotas_persist(self):
+    def test_ip_quota_persists(self):
         for index in range(4):
             status, _ = self.request("/api/submissions", self.proposal(email=f"user{index}@example.com"))
             self.assertEqual(status, 202)
@@ -105,7 +106,21 @@ class CommunitySubmissionTest(unittest.TestCase):
             "repoUrl": "https://github.com/example/next", "hardware": "", "metric": "", "quality": "",
         }, "unique-hash"))
 
-    def test_global_quota_and_honeypot_do_not_create_accounts(self):
+    def test_daily_ip_quota_without_global_block(self):
+        with self.database.connection() as connection:
+            connection.executemany(
+                "INSERT INTO rate_limit_events (bucket_key, created_at) VALUES (?, ?)",
+                [("proposal:ip-day:192.0.2.1", int(time.time()) - 3 * 60 * 60)] * 12,
+            )
+        payload = {"kind": "benchmark", "category": "training", "title": "Synthetic proposal",
+                   "summary": "Synthetic proposal for quota testing", "repoUrl": "https://github.com/example/test",
+                   "hardware": "", "metric": "", "quality": ""}
+        self.assertIsNone(self.database.create_community_submission(
+            "person@example.com", "192.0.2.1", payload, "receipt-daily-limit"))
+        self.assertIsNotNone(self.database.create_community_submission(
+            "person@example.com", "192.0.2.2", payload, "receipt-other-ip"))
+
+    def test_many_sources_and_honeypot_do_not_create_accounts(self):
         status, _ = self.request("/api/submissions", {**self.proposal(), "website": "spam.example"})
         self.assertEqual(status, 202)
         self.assertEqual(self.database.list_community_submissions(), [])
@@ -115,8 +130,8 @@ class CommunitySubmissionTest(unittest.TestCase):
         for index in range(80):
             self.assertIsNotNone(self.database.create_community_submission(
                 f"user{index}@example.invalid", f"192.0.2.{index}", payload, f"receipt-hash-{index}"))
-        self.assertIsNone(Database().create_community_submission(
-            "extra@example.invalid", "198.51.100.1", payload, "receipt-hash-extra"))
+        self.assertIsNotNone(Database().create_community_submission(
+            "user0@example.invalid", "198.51.100.1", payload, "receipt-hash-extra"))
         self.assertIsNone(self.database.user_by_email("person@example.com"))
 
 

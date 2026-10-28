@@ -252,14 +252,68 @@ class Database:
                 )
         return True
 
+    def reserve_login_attempt(self, ip: str) -> bool:
+        """Persist IP and site-wide login limits before password hashing."""
+        now = int(time.time())
+        rules = [(f"login:ip:{ip}", 12), ("login:global", 120)]
+        with self.connection() as connection:
+            if self.kind == "sqlite":
+                connection.execute("BEGIN IMMEDIATE")
+            else:
+                connection.execute("SELECT pg_advisory_xact_lock(76191003)")
+            connection.execute(f"DELETE FROM rate_limit_events WHERE created_at < {self.placeholder}", (now - 24 * 60 * 60,))
+            for key, limit in rules:
+                row = connection.execute(
+                    f"SELECT COUNT(*) AS event_count FROM rate_limit_events WHERE bucket_key = {self.placeholder} AND created_at > {self.placeholder}",
+                    (key, now - 15 * 60),
+                ).fetchone()
+                if (row[0] if self.kind == "sqlite" else row["event_count"]) >= limit:
+                    return False
+            for key, _ in rules:
+                connection.execute(
+                    f"INSERT INTO rate_limit_events (bucket_key, created_at) VALUES ({self.placeholder}, {self.placeholder})",
+                    (key, now),
+                )
+        return True
+
+    @staticmethod
+    def _login_email_key(email: str) -> str:
+        return "login:failed:" + hashlib.sha256(email.encode("utf-8")).hexdigest()
+
+    def record_failed_login(self, email: str) -> bool:
+        """Return False when this account has reached its failure threshold."""
+        now = int(time.time())
+        key = self._login_email_key(email)
+        with self.connection() as connection:
+            if self.kind == "sqlite":
+                connection.execute("BEGIN IMMEDIATE")
+            else:
+                connection.execute("SELECT pg_advisory_xact_lock(76191004)")
+            row = connection.execute(
+                f"SELECT COUNT(*) AS event_count FROM rate_limit_events WHERE bucket_key = {self.placeholder} AND created_at > {self.placeholder}",
+                (key, now - 15 * 60),
+            ).fetchone()
+            if (row[0] if self.kind == "sqlite" else row["event_count"]) >= 12:
+                return False
+            connection.execute(
+                f"INSERT INTO rate_limit_events (bucket_key, created_at) VALUES ({self.placeholder}, {self.placeholder})",
+                (key, now),
+            )
+        return True
+
+    def clear_failed_logins(self, email: str) -> None:
+        with self.connection() as connection:
+            connection.execute(
+                f"DELETE FROM rate_limit_events WHERE bucket_key = {self.placeholder}",
+                (self._login_email_key(email),),
+            )
+
     def create_community_submission(self, email: str, ip: str, payload: dict, receipt_hash: str) -> dict | None:
         """Atomically enforce quotas and save a proposal; None means rate limited."""
         now = int(time.time())
-        email_digest = hashlib.sha256(email.encode("utf-8")).hexdigest()
         rules = [
-            (f"proposal:email:{email_digest}", 2 * 60 * 60, 1),
             (f"proposal:ip:{ip}", 2 * 60 * 60, 4),
-            ("proposal:global", 24 * 60 * 60, 80),
+            (f"proposal:ip-day:{ip}", 24 * 60 * 60, 12),
         ]
         item = {"id": str(uuid.uuid4()), **payload, "status": "pending", "createdAt": now, "updatedAt": now}
         with self.connection() as connection:

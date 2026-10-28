@@ -31,6 +31,7 @@ EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 AUTH_PATHS = {"/api/auth/register", "/api/auth/verify", "/api/auth/login", "/api/auth/logout"}
 VERIFY_SECONDS = 15 * 60
 REGISTER_MESSAGE = "如果该邮箱可以注册，我们已发送确认邮件。请在 15 分钟内完成验证。"
+DUMMY_PASSWORD_HASH = hash_password("npuarena-invalid-account-dummy-password")
 DRAFTS_PATH = "/api/leaderboards/drafts"
 SUBMISSIONS_PATH = "/api/submissions"
 ADMIN_SUBMISSIONS_PATH = "/api/admin/submissions"
@@ -361,7 +362,8 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
                 return
 
             action = path.rsplit("/", 1)[-1]
-            if not allowed_attempt(self.client_ip(), action):
+            allowed = database.reserve_login_attempt(self.client_ip()) if action == "login" else allowed_attempt(self.client_ip(), action)
+            if not allowed:
                 self.json_response(HTTPStatus.TOO_MANY_REQUESTS, {"error": "尝试次数过多，请稍后再试。"})
                 return
 
@@ -413,9 +415,14 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
                 return
 
             user = database.user_by_email(email)
-            if not user or not verify_password(password, user["password_hash"]) or user["role"] != "admin":
+            password_valid = verify_password(password, user["password_hash"] if user else DUMMY_PASSWORD_HASH)
+            if not user or not password_valid or user["role"] != "admin":
+                if not database.record_failed_login(email):
+                    self.json_response(HTTPStatus.TOO_MANY_REQUESTS, {"error": "尝试次数过多，请稍后再试。"})
+                    return
                 self.json_response(HTTPStatus.UNAUTHORIZED, {"error": "邮箱或密码不正确。"})
                 return
+            database.clear_failed_logins(email)
             self.new_session({"id": user["id"], "displayName": user["display_name"], "email": user["email"], "role": user["role"]})
 
         def do_PUT(self):

@@ -8,11 +8,12 @@ import unittest
 from contextlib import closing
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from urllib.parse import parse_qs, urlsplit
 
-from database import Database
+from database import Database, verify_password
 from server import attempts, handler_for
 
 
@@ -130,6 +131,50 @@ class AccountApiTest(unittest.TestCase):
         self.database.create_admin("Admin", "admin@example.com", "long-admin-password-123")
         self.assertEqual(self.request("/api/auth/login", {"email": "admin@example.com", "password": "long-admin-password-123"})[0], 200)
         self.assertEqual(self.request("/api/auth/me")[1]["user"]["role"], "admin")
+
+    def test_login_unknown_email_uses_password_hash_and_generic_error(self):
+        self.database.create_admin("Admin", "admin@example.com", "long-admin-password-123")
+        with patch("server.verify_password", wraps=verify_password) as checked:
+            unknown = self.request("/api/auth/login", {"email": "unknown@example.com", "password": "wrong-password"})
+            self.assertEqual(checked.call_count, 1)
+            self.assertTrue(checked.call_args.args[1].startswith("scrypt$"))
+        known = self.request("/api/auth/login", {"email": "admin@example.com", "password": "wrong-password"})
+        self.assertEqual((unknown[0], unknown[1]), (known[0], known[1]))
+
+    def test_login_limits_survive_restart_and_span_source_ips(self):
+        self.database.create_admin("Admin", "admin@example.com", "long-admin-password-123")
+        os.environ["TRUSTED_PROXY_IPS"] = "127.0.0.1"
+        for index in range(12):
+            status, _, _ = self.request("/api/auth/login", {
+                "email": "admin@example.com", "password": "wrong-password"
+            }, extra_headers={"X-Forwarded-For": f"192.0.2.{index + 1}"})
+            self.assertEqual(status, 401)
+        self.stop_server()
+        self.start_server()
+        headers = {"X-Forwarded-For": "198.51.100.1"}
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "admin@example.com", "password": "wrong-password"
+        }, extra_headers=headers)[0], 429)
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "admin@example.com", "password": "long-admin-password-123"
+        }, extra_headers=headers)[0], 200)
+        self.assertTrue(Database().record_failed_login("admin@example.com"))
+
+    def test_login_ip_limit_survives_restart(self):
+        for _ in range(12):
+            self.assertEqual(self.request("/api/auth/login", {
+                "email": "unknown@example.com", "password": "wrong-password"
+            })[0], 401)
+        self.stop_server()
+        self.start_server()
+        self.assertEqual(self.request("/api/auth/login", {
+            "email": "another@example.com", "password": "wrong-password"
+        })[0], 429)
+
+    def test_distributed_login_limit_survives_restart(self):
+        for index in range(120):
+            self.assertTrue(self.database.reserve_login_attempt(f"198.51.100.{index + 1}"))
+        self.assertFalse(Database().reserve_login_attempt("203.0.113.1"))
 
     def test_duplicate_login_failure_and_cross_origin_request(self):
         account = {"displayName": "Tester", "email": "test@example.com", "password": "strong-password-123"}
