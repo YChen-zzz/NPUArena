@@ -1,4 +1,4 @@
-"""Serve the NPUArena site and its account API from one origin."""
+"""Serve the NPUTrainArena site and its account API from one origin."""
 
 from __future__ import annotations
 
@@ -472,13 +472,13 @@ def handler_for(database: Database, mailer=send_verification_email, challenge_ve
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NPUArena website and account API")
+    parser = argparse.ArgumentParser(description="NPUTrainArena website and account API")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=4173)
     args = parser.parse_args()
     database = Database()
     server = ThreadingHTTPServer((args.host, args.port), handler_for(database))
-    print(f"NPUArena: http://{args.host}:{args.port}/ (database: {database.kind})", flush=True)
+    print(f"NPUTrainArena: http://{args.host}:{args.port}/ (database: {database.kind})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

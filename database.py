@@ -1,4 +1,4 @@
-"""Account and session storage for NPUArena.
+"""Account and session storage for NPUTrainArena.
 
 SQLite is the zero-dependency local default. Set DATABASE_URL to use PostgreSQL
 when the site is deployed with a database service.

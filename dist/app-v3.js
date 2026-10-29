@@ -89,7 +89,7 @@
           <g class="processor-nodes"><g class="processor-layer processor-layer--input"><circle cx="75" cy="92" r="6"/><circle cx="75" cy="148" r="6"/></g><g class="processor-layer processor-layer--hidden"><circle cx="120" cy="72" r="6"/><circle cx="120" cy="120" r="6"/><circle cx="120" cy="168" r="6"/></g><g class="processor-layer processor-layer--output"><circle cx="165" cy="92" r="6"/><circle cx="165" cy="148" r="6"/></g></g>
           <path class="processor-corner" d="M61 70v-9h9m100 0h9v9M61 166v11h9m100 0h9v-11"/>
         </svg>
-        <h1>NPUArena</h1>
+        <h1>NPUTrainArena</h1>
       </div></div></section>
       <div class="home-intro container"><a class="button button-primary" href="#/leaderboards">查看 Leaderboards ↗</a><a class="text-link" href="#/benchmarks">浏览 Benchmarks →</a><a class="text-link" href="#/submit">提交新赛题或榜单 →</a></div>
       <section class="section container"><div class="section-heading"><h2>排行榜</h2><a class="section-more" href="#/leaderboards">查看全部 →</a></div>${leaderboardFeature()}<div class="board-card-grid">${extraList().map(extraBoardCard).join('')}</div></section>
@@ -263,7 +263,7 @@
   }
 
   function accountPage() {
-    if (state.user) return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">MY ACCOUNT</span><h1>你好，${esc(state.user.displayName)}</h1><p>已登录 NPUArena。账号信息保存在服务端数据库中。</p><div class="account-identity"><span>邮箱</span><strong>${esc(state.user.email)}</strong></div><div class="account-identity"><span>权限</span><strong>${isAdmin() ? '管理员' : '普通用户'}</strong></div><div class="account-actions"><a class="button button-primary" href="#/admin/submissions">审核用户提案</a><a class="button button-outline" href="#/leaderboards">浏览 Leaderboards</a><button class="button button-outline" type="button" data-logout>退出登录</button></div><div class="account-future"><strong>当前功能</strong><span>可审核用户提案，并在服务端创建和修改 Leaderboard 草稿。</span></div></div></div>`;
+    if (state.user) return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">MY ACCOUNT</span><h1>你好，${esc(state.user.displayName)}</h1><p>已登录 NPUTrainArena。账号信息保存在服务端数据库中。</p><div class="account-identity"><span>邮箱</span><strong>${esc(state.user.email)}</strong></div><div class="account-identity"><span>权限</span><strong>${isAdmin() ? '管理员' : '普通用户'}</strong></div><div class="account-actions"><a class="button button-primary" href="#/admin/submissions">审核用户提案</a><a class="button button-outline" href="#/leaderboards">浏览 Leaderboards</a><button class="button button-outline" type="button" data-logout>退出登录</button></div><div class="account-future"><strong>当前功能</strong><span>可审核用户提案，并在服务端创建和修改 Leaderboard 草稿。</span></div></div></div>`;
     return `<div class="page container account-page"><div class="account-card"><span class="eyebrow">ADMIN ACCOUNT</span><h1>管理员登录</h1><p>管理员登录后可创建和修改 Leaderboard。</p><form id="authForm" class="auth-form"><label>邮箱<input name="email" type="email" autocomplete="username" maxlength="254" required placeholder="admin@example.com" /></label><label>密码<input name="password" type="password" autocomplete="current-password" required placeholder="管理员密码" /></label><button class="button button-primary" type="submit">登录</button><span class="auth-status" id="authStatus" role="status">${esc(state.authError)}</span></form><div class="account-future"><strong>账号数据</strong><span>管理员账号在服务器创建；密码只以哈希形式存储。</span></div></div></div>`;
   }
 
@@ -456,7 +456,7 @@
     const extraBoard = extraBoards[path.split('/')[1]];
     const active = path.startsWith('/leaderboards') || path.startsWith('/nanogpt') || extraBoard || path === '/import' ? 'leaderboards' : path === '/benchmarks' || path === '/create' ? 'benchmarks' : '';
     document.querySelectorAll('[data-nav]').forEach(link => link.classList.toggle('active', link.dataset.nav === active));
-    document.title = `${path === '/' ? '首页' : path === '/submit' ? '提交提案' : path === '/admin/submissions' ? '审核提案' : path.startsWith('/submission/') ? '提案状态' : path.startsWith('/community/') ? '社区提案' : path === '/benchmarks' ? 'Benchmarks' : path === '/leaderboards' ? 'Leaderboards' : path === '/leaderboards/new' ? '创建 Leaderboard' : path.startsWith('/leaderboards/draft/') ? 'Leaderboard 草稿' : path.startsWith('/nanogpt') ? 'NanoGPT NPU' : extraBoard ? extraBoard.title : path === '/create' ? '创建 Benchmark' : path === '/import' ? '接入已有榜单' : '账号'} · NPUArena`;
+    document.title = `${path === '/' ? '首页' : path === '/submit' ? '提交提案' : path === '/admin/submissions' ? '审核提案' : path.startsWith('/submission/') ? '提案状态' : path.startsWith('/community/') ? '社区提案' : path === '/benchmarks' ? 'Benchmarks' : path === '/leaderboards' ? 'Leaderboards' : path === '/leaderboards/new' ? '创建 Leaderboard' : path.startsWith('/leaderboards/draft/') ? 'Leaderboard 草稿' : path.startsWith('/nanogpt') ? 'NanoGPT NPU' : extraBoard ? extraBoard.title : path === '/create' ? '创建 Benchmark' : path === '/import' ? '接入已有榜单' : '账号'} · NPUTrainArena`;
     document.getElementById('siteNav').classList.remove('open');
     document.getElementById('menuButton').setAttribute('aria-expanded', 'false');
     window.scrollTo(0, 0);

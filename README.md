@@ -1,8 +1,8 @@
-# NPUArena
+# NPUTrainArena
 
 NPU 性能挑战与排行榜平台，包含榜单前端和账号 API。顶部把 **Benchmarks**（可按固定协议评测的任务）与 **Leaderboards**（已有项目的成绩榜）分开，并按训练加速、推理加速、算子加速分类。目前还没有正式发布的自动评测 Benchmark；Leaderboards 展示 [`zhaoyiyidan/modded-nanogpt-npu`](https://github.com/zhaoyiyidan/modded-nanogpt-npu)、[`YChen-zzz/VIT-TIMM-npu`](https://github.com/YChen-zzz/VIT-TIMM-npu)、[`YChen-zzz/Qwen3-transformers-npu`](https://github.com/YChen-zzz/Qwen3-transformers-npu)、[`YChen-zzz/cifar10-airbench-npu`](https://github.com/YChen-zzz/cifar10-airbench-npu) 和 [`YChen-zzz/nanoVLM-npu`](https://github.com/YChen-zzz/nanoVLM-npu) 的仓库成绩。五个榜单的硬件、质量门槛与计时范围各自独立，不跨榜单混排。
 
-首页使用线路板动画和完整 NPUArena 名称作为主视觉。NanoGPT 榜单页面分为概览、数据与模型、评测规则、提交、排行榜。正式提交仍走 GitHub PR。站内可查询公开 PR 的 GitHub 状态。
+首页使用线路板动画和完整 NPUTrainArena 名称作为主视觉。NanoGPT 榜单页面分为概览、数据与模型、评测规则、提交、排行榜。正式提交仍走 GitHub PR。站内可查询公开 PR 的 GitHub 状态。
 
 访客无需注册即可提交 Benchmark 或 Leaderboard 提案：填写联系邮箱、简介和 GitHub 仓库，提案先进入管理员审核队列，审核通过后展示在相应目录的“社区提案”区域。Benchmark 的详细本机草稿可以一键带入提案表单。管理员仍可独立创建和编辑 Leaderboard 草稿；“接入已有榜单”的来源映射草稿仍保存在浏览器 `localStorage`。公开注册已关闭；管理员登录和退出由服务端处理。社区提案不等同于正式赛题或成绩记录，网站没有 NPU 自动评测后端。
 

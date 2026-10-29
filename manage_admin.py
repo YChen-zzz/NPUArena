@@ -1,4 +1,4 @@
-"""Create or manage NPUArena admin accounts from the server machine."""
+"""Create or manage NPUTrainArena admin accounts from the server machine."""
 
 import argparse
 import getpass
@@ -8,7 +8,7 @@ from database import Database, DuplicateEmail
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage NPUArena administrator accounts")
+    parser = argparse.ArgumentParser(description="Manage NPUTrainArena administrator accounts")
     parser.add_argument("action", choices=("create", "grant", "revoke", "password"))
     parser.add_argument("email", help="Administrator email address")
     parser.add_argument("--name", default="Administrator", help="Display name for a new administrator")

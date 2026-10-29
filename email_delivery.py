@@ -24,9 +24,9 @@ def send_verification_email(recipient: str, url: str) -> None:
     message = EmailMessage()
     message["From"] = sender
     message["To"] = recipient
-    message["Subject"] = "NPUArena 账号申请"
+    message["Subject"] = "NPUTrainArena 账号申请"
     message.set_content(
-        "如果你刚刚申请 NPUArena 账号，请打开以下链接继续。新账号需在 15 分钟内确认邮箱；已有账号可直接登录。\n\n"
+        "如果你刚刚申请 NPUTrainArena 账号，请打开以下链接继续。新账号需在 15 分钟内确认邮箱；已有账号可直接登录。\n\n"
         f"{url}\n\n"
         "如果不是你发起的请求，请忽略此邮件。"
     )
