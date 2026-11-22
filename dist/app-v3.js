@@ -77,13 +77,26 @@
 
   function homePage() {
     return `<div class="home-page">
-      <section class="getting-started container" aria-labelledby="getting-started-title">
-        <div class="getting-started-heading"><div><span class="eyebrow">GET STARTED</span><h1 id="getting-started-title">怎么开始评测</h1><p>选择已有榜单，按项目规则运行并提交成绩。</p></div><a class="button button-primary" href="#/leaderboards">选择榜单 ↗</a></div>
-        <ol class="getting-started-steps">
-          <li><span class="step-number">01</span><h2>选择任务</h2><p>浏览榜单，选择适合你的模型和硬件配置。</p><a href="#/leaderboards">浏览榜单 →</a></li>
-          <li><span class="step-number">02</span><h2>阅读规则并运行</h2><p>在榜单详情中查看数据、硬件和质量门槛，按照项目仓库的说明运行。</p><a href="#/nanogpt/evaluation">查看规则示例 →</a></li>
-          <li><span class="step-number">03</span><h2>提交并比较成绩</h2><p>保存代码和运行日志，按对应项目的提交要求提交；收录后可在榜单中比较。</p><a href="#/nanogpt/submit">查看提交示例 →</a></li>
-        </ol><p class="getting-started-note">正式 Benchmark 和站内自动评测正在筹备；目前已有榜单的成绩由各项目仓库维护。 <a href="#/benchmarks">了解 Benchmarks →</a></p>
+      <section class="guide container" aria-labelledby="guide-title">
+        <div class="guide-header"><div><span class="eyebrow">FIRST BENCHMARK · NPU TRAINING</span><h1 id="guide-title">从 Modded NanoGPT 开始</h1><p>在 Ascend NPU 上训练语言模型，测量达到 FineWeb 验证损失目标所需的训练时间。</p></div><a class="button button-primary" href="#/nanogpt/leaderboard">查看已有成绩 ↗</a></div>
+        <div class="guide-facts"><div><span>参考硬件</span><strong>8 × Ascend 910C</strong><small>16 die / 16 个训练进程</small></div><div><span>数据与目标</span><strong>FineWeb · val loss ≤ 3.28</strong><small>验证集交叉熵，越低越好</small></div><div><span>比较指标</span><strong>训练时间</strong><small>达到目标后比较，越短越好</small></div></div>
+        <div class="guide-layout"><div class="guide-main">
+          <article class="guide-step"><span class="guide-number">01</span><div><h2>准备环境与代码</h2><p>NPU 仓库记录的参考环境是 Python 3.10.19、PyTorch 2.7.1 和 torch_npu 2.7.1.post2，使用下方镜像。需先在可访问 8 张 910C 的环境中配置好昇腾驱动、设备和容器运行环境。</p><pre><code>git clone https://github.com/zhaoyiyidan/modded-nanogpt-npu.git
+cd modded-nanogpt-npu
+# 参考镜像：docker.cnb.cool/nilpotenter/docker/codeserver-mindspeed:v1.0.5
+# 在该镜像内使用仓库记录的 Python 环境
+export PATH=/root/miniconda3/envs/llm_test/bin:$PATH
+python --version
+python -c "import torch, torch_npu; print(torch.__version__, torch_npu.__version__, torch.npu.is_available())"
+python -m pip install -r requirements.txt</code></pre><p class="guide-hint">镜像的设备映射和启动方式取决于你的集群；上面的检查应返回 NPU 可用。仓库记录的 <code>torch 2.7.1+cpu</code> 是包构建标识，不代表在 CPU 上训练。</p></div></article>
+          <article class="guide-step"><span class="guide-number">02</span><div><h2>下载 FineWeb 数据</h2><p>脚本从 Hugging Face 下载 GPT-2 tokenized FineWeb10B，保存到 <code>data/fineweb10B/</code>。不带参数会下载验证集和全部 103 个训练分片；需要网络和足够磁盘空间。</p><pre><code>python data/cached_fineweb10B.py
+ls data/fineweb10B/fineweb_val_*.bin
+ls data/fineweb10B/fineweb_train_*.bin | wc -l</code></pre><p class="guide-hint">顶层脚本默认从该目录读取数据；若使用外部数据目录，可设置 <code>DATA_PATH</code> 为包含 <code>data/fineweb10B/</code> 的目录。请保留原始训练及验证 token 流。</p></div></article>
+          <article class="guide-step"><span class="guide-number">03</span><div><h2>运行基线并保存日志</h2><p>在仓库根目录运行顶层快照。<code>run.sh</code> 使用 16 个分布式进程，每个 die 一个进程；它是可运行快照，不应直接等同于榜单任意一条记录的源码。</p><pre><code>bash run.sh
+# 等价于：torchrun --standalone --nproc_per_node=16 train_gpt.py</code></pre><p>主进程会输出 <code>logs/&lt;run_id&gt;/</code>，其中包含 <code>train.log</code>、<code>metrics.jsonl</code>、源码快照和 <code>command.txt</code>。要复现具体成绩，请使用该记录的 <code>source/</code> 和 <code>logs/</code>，核对其依赖与启动方式。</p></div></article>
+          <article class="guide-step"><span class="guide-number">04</span><div><h2>核对损失和计时</h2><p>在 <code>train.log</code> 中查看验证行的 <code>val_loss</code> 与 <code>train_time</code>，以及末尾的 <code>total training time</code>。确认验证损失达到 ≤ 3.28，再与相同硬件和任务口径的成绩比较。</p><pre><code>grep -E 'val_loss:|total training time:' logs/&lt;run_id&gt;/train.log</code></pre><p class="guide-hint">将 <code>&lt;run_id&gt;</code> 换成实际目录名。顶层脚本的计时在验证前暂停、验证后恢复；不同记录实现可能不同，比较前请检查对应源码和日志。多次成功运行的榜单条目按仓库说明报告平均时间。</p></div></article>
+          <article class="guide-step"><span class="guide-number">05</span><div><h2>整理结果并提交 PR</h2><p>Fork NPU 仓库，在自己的分支中整理实现并发起 Pull Request。建议提供以下材料，方便维护者复现和审核：</p><ul><li>改动说明、对比基线及代码 commit；完整实现和启动命令。</li><li>硬件、镜像、Python / PyTorch / torch_npu 版本与进程数。</li><li>每次运行的完整日志、最终验证损失和训练时间；多次运行时列出各次结果和平均值。</li><li>数据来源及路径、复现步骤和与已有实现的差异。</li></ul><p>仓库现有记录将源码放在 <code>records/track_1_short_npu/&lt;record&gt;/source/</code>、成功日志放在同级 <code>logs/</code>；可参考这些目录组织材料。仓库未给出完整的 NPU PR 模板，具体收录要求以维护者审核为准。</p><div class="guide-actions"><a class="button button-primary" href="${REPO}/compare" target="_blank" rel="noopener noreferrer">前往 GitHub 提交 PR ↗</a><a class="text-link" href="${REPO}/tree/master/records/track_1_short_npu" target="_blank" rel="noopener noreferrer">查看已有记录 ↗</a></div></div></article>
+        </div><aside class="guide-aside"><div><h2>评测前确认</h2><p>这是训练 speedrun：在相同数据、硬件与质量目标下比较训练时间。本站展示仓库已收录的记录，训练和审核在项目仓库完成。</p><a href="${REPO}#runtime" target="_blank" rel="noopener noreferrer">NPU 环境说明 ↗</a><a href="${REPO}#npu-leaderboard" target="_blank" rel="noopener noreferrer">NPU 榜单与日志 ↗</a><a href="#/nanogpt/evaluation">站内评测口径 →</a></div><div><h2>规则来源</h2><p>GPU 上游规则对数据流、统计显著性和计时有额外要求；NPU 仓库保留这些内容供参考，不能直接当作已确认的 NPU 提交规则。</p><a href="${UPSTREAM}#rules" target="_blank" rel="noopener noreferrer">查看上游 GPU 规则 ↗</a></div></aside></div>
       </section>
       <section class="hero-banner container"><div class="hero-visual"><canvas id="circuitCanvas" aria-hidden="true"></canvas><div class="hero-core">
         <svg class="processor-graphic" viewBox="0 0 240 240" aria-hidden="true" focusable="false">
