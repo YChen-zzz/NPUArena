@@ -77,6 +77,14 @@
 
   function homePage() {
     return `<div class="home-page">
+      <section class="getting-started container" aria-labelledby="getting-started-title">
+        <div class="getting-started-heading"><div><span class="eyebrow">GET STARTED</span><h1 id="getting-started-title">怎么开始评测</h1><p>选择已有榜单，按项目规则运行并提交成绩。</p></div><a class="button button-primary" href="#/leaderboards">选择榜单 ↗</a></div>
+        <ol class="getting-started-steps">
+          <li><span class="step-number">01</span><h2>选择任务</h2><p>浏览榜单，选择适合你的模型和硬件配置。</p><a href="#/leaderboards">浏览榜单 →</a></li>
+          <li><span class="step-number">02</span><h2>阅读规则并运行</h2><p>在榜单详情中查看数据、硬件和质量门槛，按照项目仓库的说明运行。</p><a href="#/nanogpt/evaluation">查看规则示例 →</a></li>
+          <li><span class="step-number">03</span><h2>提交并比较成绩</h2><p>保存代码和运行日志，按对应项目的提交要求提交；收录后可在榜单中比较。</p><a href="#/nanogpt/submit">查看提交示例 →</a></li>
+        </ol><p class="getting-started-note">正式 Benchmark 和站内自动评测正在筹备；目前已有榜单的成绩由各项目仓库维护。 <a href="#/benchmarks">了解 Benchmarks →</a></p>
+      </section>
       <section class="hero-banner container"><div class="hero-visual"><canvas id="circuitCanvas" aria-hidden="true"></canvas><div class="hero-core">
         <svg class="processor-graphic" viewBox="0 0 240 240" aria-hidden="true" focusable="false">
           <defs><linearGradient id="processorFace" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#166f69"/><stop offset="1" stop-color="#094f53"/></linearGradient><linearGradient id="processorTrace" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b6eee0"/><stop offset="1" stop-color="#5cc8b8"/></linearGradient></defs>
@@ -89,7 +97,7 @@
           <g class="processor-nodes"><g class="processor-layer processor-layer--input"><circle cx="75" cy="92" r="6"/><circle cx="75" cy="148" r="6"/></g><g class="processor-layer processor-layer--hidden"><circle cx="120" cy="72" r="6"/><circle cx="120" cy="120" r="6"/><circle cx="120" cy="168" r="6"/></g><g class="processor-layer processor-layer--output"><circle cx="165" cy="92" r="6"/><circle cx="165" cy="148" r="6"/></g></g>
           <path class="processor-corner" d="M61 70v-9h9m100 0h9v9M61 166v11h9m100 0h9v-11"/>
         </svg>
-        <h1>NPUTrainArena</h1>
+        <div class="hero-title">NPUTrainArena</div>
       </div></div></section>
       <div class="home-intro container"><a class="button button-primary" href="#/leaderboards">查看 Leaderboards ↗</a><a class="text-link" href="#/benchmarks">浏览 Benchmarks →</a><a class="text-link" href="#/submit">提交新赛题或榜单 →</a></div>
       <section class="section container"><div class="section-heading"><h2>排行榜</h2><a class="section-more" href="#/leaderboards">查看全部 →</a></div>${leaderboardFeature()}<div class="board-card-grid">${extraList().map(extraBoardCard).join('')}</div></section>
